@@ -27,16 +27,9 @@ root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
 
 -- flex layout and align
 root:set {
-    flex = {
-        flex_direction = "column",
-        flex_wrap = "wrap",
-        justify_content = "center",
-        align_items = "center",
-        align_content = "center",
-    },
-    w = 320,
-    h = 240,
-    align = lvgl.ALIGN.CENTER
+    w = lvgl.HOR_RES(),
+    h = lvgl.VER_RES(),
+    align = lvgl.ALIGN.TOP_LEFT
 }
 
 label = root:Label {
@@ -45,46 +38,60 @@ label = root:Label {
     align = lvgl.ALIGN.CENTER
 }        
 
-local btn = createBtn(root, "Send Message")
+local form = root:Object {
+    flex = {
+        flex_direction = "row",
+        align = lvgl.ALIGN.BOTTOM_MID,
+        x_ofs = 0,
+        y_ofs = -150,
+        justify = "space_between" -- Spread elements across available space
+    },
+    border_width = 0,
+    w = lvgl.HOR_RES(),
+    pad_all = 0, -- Add some padding for aesthetics
 
--- Create textarea
-local ta = root:Textarea {
+}
+
+local ta = form:Textarea {
     password_mode = false,
     one_line = true,
     text = "Type a message...",
-    w = 280,
+    w = lvgl.PCT(80), -- 80% of parent width
     h = 40,
-    pad_all = 2,
-    align = lvgl.ALIGN.TOP_MID,
+    align = lvgl.ALIGN.LEFT_MID
 }
 
-print("created textarea: ", ta)
+local btn = createBtn(form, "Send")
 
--- Animation example with playback
-local obj = root:Object {
-    bg_color = "#F00000",
-    radius = lvgl.RADIUS_CIRCLE,
-    size = 24,
-    x = 280,
-    y = 200
-}
-obj:clear_flag(lvgl.FLAG.SCROLLABLE)
 
--- Animation parameters
-local animPara = {
-    run = true,
-    start_value = 16,
-    end_value = 32,
-    duration = 1000,
-    repeat_count = lvgl.ANIM_REPEAT_INFINITE,
-    path = "ease_in_out",
-}
+-- Display animation
+if false then
+    -- Animation example with playback
+    local obj = root:Object {
+        bg_color = "#F00000",
+        radius = lvgl.RADIUS_CIRCLE,
+        size = 24,
+        x = 280,
+        y = 200
+    }
+    obj:clear_flag(lvgl.FLAG.SCROLLABLE)
 
-animPara.exec_cb = function(obj, value)
-    obj:set { size = value }
+    -- Animation parameters
+    local animPara = {
+        run = true,
+        start_value = 16,
+        end_value = 32,
+        duration = 1000,
+        repeat_count = lvgl.ANIM_REPEAT_INFINITE,
+        path = "ease_in_out",
+    }
+
+    animPara.exec_cb = function(obj, value)
+        obj:set { size = value }
+    end
+
+    obj:Anim(animPara)
+
+    -- Return the root object
+    return root
 end
-
-obj:Anim(animPara)
-
--- Return the root object
-return root
