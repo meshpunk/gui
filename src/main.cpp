@@ -246,12 +246,12 @@ static void btn_event_handler(lv_event_t *e) {
 // Create a simple UI
 void createUI() {
   // Get the active screen
-  lv_obj_t *scr = lv_scr_act();
+  // lv_obj_t *scr = lv_scr_act();
 
   // Create a label
-  label = lv_label_create(scr);
-  lv_label_set_text(label, "Hello MeshPunk World!");
-  lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
+  // label = lv_label_create(scr);
+  // lv_label_set_text(label, "Hello MeshPunk World!");
+  // lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
 
   // // Create a button
   // lv_obj_t *btn = lv_btn_create(scr);
@@ -289,6 +289,59 @@ void setupLuaVGL() {
 
   // Load and run LuaVGL hello world script
   const char *luaScript = R"(
+        local fixture_posts = {
+            {
+                content = "Alright, top folk punk bands?", 
+                avatar_id = "a1b2c3d4", 
+                post_time = os.time() - 7200
+            },
+            {
+                content = "Against Me! Laura Jane Grace is legendary.", 
+                avatar_id = "e5f6g7h8", 
+                post_time = os.time() - 7100
+            },
+            {
+                content = "Yeah, but also The Front Bottoms. Their early stuff is peak folk punk.", 
+                avatar_id = "i9j0k1l2", 
+                post_time = os.time() - 7000
+            },
+            {
+                content = "AJJ deserves a mention. That raw energy is unmatched!", 
+                avatar_id = "a1b2c3d4", 
+                post_time = os.time() - 6900
+            },
+            {
+                content = "Definitely. And Defiance, Ohio. They had some bangers!", 
+                avatar_id = "e5f6g7h8", 
+                post_time = os.time() - 6800
+            },
+            {
+                content = "Pat the Bunny. Dude basically IS folk punk.", 
+                avatar_id = "i9j0k1l2", 
+                post_time = os.time() - 6700
+            },
+            {
+                content = "True. And don't forget Mischief Brew. Erik Petersen was a genius.", 
+                avatar_id = "a1b2c3d4", 
+                post_time = os.time() - 6600
+            },
+            {
+                content = "Okay, but best album from this whole scene?", 
+                avatar_id = "e5f6g7h8", 
+                post_time = os.time() - 6500
+            },
+            {
+                content = "Reinventing Axl Rose by Against Me! No contest.", 
+                avatar_id = "i9j0k1l2", 
+                post_time = os.time() - 6400
+            },
+            {
+                content = "Hard agree. That album defined a whole era.", 
+                avatar_id = "a1b2c3d4", 
+                post_time = os.time() - 6300
+            }
+        }
+
         local function createBtn(parent, name)
             local root = parent:Button {
                 w = lvgl.SIZE_CONTENT,
@@ -315,21 +368,22 @@ void setupLuaVGL() {
         root:set {
             flex = {
                 flex_direction = "column",
-                flex_wrap = "wrap",
-                justify_content = "center",
-                align_items = "center",
-                align_content = "center",
+                flex_wrap = "nowrap",
+                justify_content = "start",
+                align_items = "start",
             },
             w = 320,
             h = 240,
-            align = lvgl.ALIGN.CENTER
+            align = lvgl.ALIGN.TOP_LEFT
         }
 
-        label = root:Label {
-            text = string.format("Hello %03d", 123),
-            text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
-            align = lvgl.ALIGN.CENTER
-        }        
+        -- Create list of posts
+        for _, post in ipairs(fixture_posts) do
+            local post_label = root:Label {
+                text = string.format("%s\n[%s]", post.content, post.avatar_id),
+                align = lvgl.ALIGN.LEFT_MID
+            }
+        end
 
         createBtn(root, "Button")
 
@@ -464,35 +518,6 @@ void setup() {
 
   // Create UI
   createUI();
-
-  // Create a test textarea for keyboard input
-  if (keyboard_available) {
-    // Get the active screen
-    lv_obj_t *scr = lv_scr_act();
-
-    // Create a label for instructions
-    lv_obj_t *instructions = lv_label_create(scr);
-    lv_label_set_text(instructions, "Testing keyboard input:");
-    lv_obj_align(instructions, LV_ALIGN_TOP_MID, 0, 50);
-
-    // Create a text area for keyboard input testing
-    lv_obj_t *ta = lv_textarea_create(scr);
-    lv_obj_set_size(ta, 280, 60);
-    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, 80);
-    lv_textarea_set_placeholder_text(ta, "Type with keyboard...");
-    lv_obj_add_state(ta, LV_STATE_FOCUSED); // Give it initial focus
-
-    // Add textarea to keyboard group
-    lv_group_t *g = lv_group_get_default();
-    if (g) {
-      lv_group_add_obj(g, ta);
-
-      // Set it as the default focused object
-      lv_group_focus_obj(ta);
-
-      // Serial.println("Added textarea to keyboard group with focus");
-    }
-  }
 
   // Adjust backlight
   pinMode(BOARD_BL_PIN, OUTPUT);
