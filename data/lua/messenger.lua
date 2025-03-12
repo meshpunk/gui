@@ -42,21 +42,20 @@ local form = root:Object {
     flex = {
         flex_direction = "row",
         align = lvgl.ALIGN.BOTTOM_MID,
-        x_ofs = 0,
-        y_ofs = -150,
-        justify = "space_between" -- Spread elements across available space
     },
     border_width = 0,
     w = lvgl.HOR_RES(),
+    h = 40,
     pad_all = 0, -- Add some padding for aesthetics
-
 }
+
+form:clear_flag(lvgl.FLAG.SCROLLABLE)
 
 local ta = form:Textarea {
     password_mode = false,
     one_line = true,
-    text = "Type a message...",
-    w = lvgl.PCT(80), -- 80% of parent width
+    placeholder = "Type a message...",
+    w = lvgl.PCT(69), -- 69% of parent width
     h = 40,
     align = lvgl.ALIGN.LEFT_MID
 }
