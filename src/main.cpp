@@ -2,7 +2,7 @@
 #include "utilities.h"
 #include <Arduino.h>
 #include <TFT_eSPI.h>
-#include <Ticker.h>  // Include ticker for LVGL timing
+#include <Ticker.h> // Include ticker for LVGL timing
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -64,12 +64,26 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area,
 // Touch handling
 int16_t x[5], y[5];
 
+// Debug flag for touch
+bool touch_debug = true;
+unsigned long last_touch_debug = 0;
+
 static void touchpad_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
   data->state = LV_INDEV_STATE_RELEASED;
 
   if (touch.isPressed()) {
     uint8_t touched = touch.getPoint(x, y, touch.getSupportTouchPoint());
     if (touched > 0) {
+      // Print touch coordinates for debugging (limit frequency to avoid
+      // flooding serial)
+      if (touch_debug && (millis() - last_touch_debug > 500)) {
+        Serial.print("Touch detected! x=");
+        Serial.print(x[0]);
+        Serial.print(" y=");
+        Serial.println(y[0]);
+        last_touch_debug = millis();
+      }
+
       data->state = LV_INDEV_STATE_PRESSED;
       data->point.x = x[0];
       data->point.y = y[0];
@@ -168,19 +182,14 @@ void setupLuaVGL() {
   // Load and run LuaVGL hello world script
   const char *luaScript = R"(
         local function createBtn(parent, name)
-            local root = parent:Object {
+            local root = parent:Button {
                 w = lvgl.SIZE_CONTENT,
                 h = lvgl.SIZE_CONTENT,
-                bg_color = "#ccc",
-                bg_opa = lvgl.OPA(100),
-                border_width = 0,
-                radius = 10,
-                pad_all = 20,
             }
 
             root:onClicked(function()
-                -- container:delete()
-                -- require(name)
+                print("Button clicked!")
+                root:set { bg_color = "#00FF00" }
             end)
 
             root:Label {
@@ -217,19 +226,20 @@ void setupLuaVGL() {
         createBtn(root, "Button")
 
         -- second anim example with playback
-        local obj = root:Object {
+        local obj = parent:Object {
             bg_color = "#F00000",
             radius = lvgl.RADIUS_CIRCLE,
-            align = lvgl.ALIGN.LEFT_MID,
             size = 64,
+            x = 64,
+            y = 64
         }
         obj:clear_flag(lvgl.FLAG.SCROLLABLE)
 
         --- @type AnimPara
         local animPara = {
             run = true,
-            start_value = 50,
-            end_value = 100,
+            start_value = 16,
+            end_value = 32,
             duration = 1000,
             repeat_count = lvgl.ANIM_REPEAT_INFINITE,
             path = "ease_in_out",
@@ -248,6 +258,39 @@ void setupLuaVGL() {
     Serial.println(lua_tostring(L, -1));
     lua_pop(L, 1);
   }
+}
+
+// Function to create a native LVGL button for testing touch
+void createTestButton() {
+  // Get the active screen
+  lv_obj_t *scr = lv_scr_act();
+
+  // Create a button
+  lv_obj_t *btn = lv_btn_create(scr);
+  lv_obj_set_pos(btn, 50, 120);
+  lv_obj_set_size(btn, 120, 50);
+
+  // Add event handler
+  lv_obj_add_event_cb(
+      btn,
+      [](lv_event_t *e) {
+        Serial.println("NATIVE BUTTON CLICKED!");
+        lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
+        static uint8_t cnt = 0;
+        cnt++;
+
+        // Change the button's color to confirm the click
+        if (cnt % 2)
+          lv_obj_set_style_bg_color(btn, lv_color_hex(0xFF0000), 0);
+        else
+          lv_obj_set_style_bg_color(btn, lv_color_hex(0x0000FF), 0);
+      },
+      LV_EVENT_CLICKED, NULL);
+
+  // Add a label to the button
+  lv_obj_t *label = lv_label_create(btn);
+  lv_label_set_text(label, "Test Button");
+  lv_obj_center(label);
 }
 
 void setup() {
@@ -321,6 +364,9 @@ void setup() {
   // Create UI
   createUI();
 
+  // Create a native LVGL button for testing touch
+  createTestButton();
+
   // Adjust backlight
   pinMode(BOARD_BL_PIN, OUTPUT);
   setBrightness(16);
@@ -329,6 +375,21 @@ void setup() {
 void loop() {
   // Handle LVGL tasks
   lv_timer_handler();
+
+  // Check for touch directly from sensor (as additional test)
+  static unsigned long last_direct_check = 0;
+  if (millis() - last_direct_check > 300) {
+    if (touch.isPressed()) {
+      uint8_t touched = touch.getPoint(x, y, touch.getSupportTouchPoint());
+      if (touched > 0 && touch_debug) {
+        Serial.print("Direct touch check: x=");
+        Serial.print(x[0]);
+        Serial.print(" y=");
+        Serial.println(y[0]);
+      }
+    }
+    last_direct_check = millis();
+  }
 
   delay(5);
 }
