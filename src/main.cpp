@@ -127,16 +127,16 @@ void createUI() {
   lv_label_set_text(label, "Hello MeshPunk World!");
   lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
 
-  // Create a button
-  lv_obj_t *btn = lv_btn_create(scr);
-  lv_obj_set_pos(btn, 50, 100);
-  lv_obj_set_size(btn, 120, 50);
-  lv_obj_add_event_cb(btn, btn_event_handler, LV_EVENT_CLICKED, NULL);
+  // // Create a button
+  // lv_obj_t *btn = lv_btn_create(scr);
+  // lv_obj_set_pos(btn, 50, 100);
+  // lv_obj_set_size(btn, 120, 50);
+  // lv_obj_add_event_cb(btn, btn_event_handler, LV_EVENT_CLICKED, NULL);
 
-  // Create label on the button
-  lv_obj_t *btn_label = lv_label_create(btn);
-  lv_label_set_text(btn_label, "Click Me!");
-  lv_obj_center(btn_label);
+  // // Create label on the button
+  // lv_obj_t *btn_label = lv_label_create(btn);
+  // lv_label_set_text(btn_label, "Click Me!");
+  // lv_obj_center(btn_label);
 }
 
 // Initialize LuaVGL
@@ -163,6 +163,29 @@ void setupLuaVGL() {
 
   // Load and run LuaVGL hello world script
   const char *luaScript = R"(
+        local function createBtn(parent, name)
+            local root = parent:Object {
+                w = lvgl.SIZE_CONTENT,
+                h = lvgl.SIZE_CONTENT,
+                bg_color = "#ccc",
+                bg_opa = lvgl.OPA(100),
+                border_width = 0,
+                radius = 10,
+                pad_all = 20,
+            }
+
+            root:onClicked(function()
+                -- container:delete()
+                -- require(name)
+            end)
+
+            root:Label {
+                text = name,
+                text_color = "#333",
+                align = lvgl.ALIGN.CENTER,
+            }
+        end
+
         -- Create a simple hello world label
         local root = lvgl.Object()
         root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
@@ -170,19 +193,49 @@ void setupLuaVGL() {
         -- flex layout and align
         root:set {
             flex = {
-                flex_direction = "row",
+                flex_direction = "column",
                 flex_wrap = "wrap",
                 justify_content = "center",
                 align_items = "center",
                 align_content = "center",
             },
-            w = 300,
-            h = 75,
+            w = 320,
+            h = 240,
             align = lvgl.ALIGN.CENTER
         }
 
-        -- create obj on root
-        local obj = root:Object()
+        label = root:Label {
+            text = string.format("Hello %03d", 123),
+            text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
+            align = lvgl.ALIGN.CENTER
+        }        
+
+        createBtn(root, "Button")
+
+        -- second anim example with playback
+        local obj = root:Object {
+            bg_color = "#F00000",
+            radius = lvgl.RADIUS_CIRCLE,
+            align = lvgl.ALIGN.LEFT_MID,
+            size = 64,
+        }
+        obj:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+        --- @type AnimPara
+        local animPara = {
+            run = true,
+            start_value = 50,
+            end_value = 100,
+            duration = 1000,
+            repeat_count = lvgl.ANIM_REPEAT_INFINITE,
+            path = "ease_in_out",
+        }
+
+        animPara.exec_cb = function(obj, value)
+            obj:set { size = value }
+        end
+
+        obj:Anim(animPara)
 
     )";
 
@@ -267,11 +320,6 @@ void setup() {
 void loop() {
   // Handle LVGL tasks
   lv_timer_handler();
-
-  // LuaVGL periodic handler (if needed)
-  // if (L) {
-  //   luavgl_handle_task(L);
-  // }
 
   delay(5);
 }

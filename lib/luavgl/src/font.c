@@ -2,6 +2,10 @@
 #include "private.h"
 
 #define FONT_DEFAULT_SIZE 12
+#define LV_FONT_MONTSERRAT_12 1
+#define LV_FONT_MONTSERRAT_14 1
+#define LV_FONT_MONTSERRAT_28 1
+
 
 #define _ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
 
