@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "luavgl.h": "c",
+        "private.h": "c"
+    }
+}

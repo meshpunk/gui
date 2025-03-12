@@ -1,0 +1,4 @@
+# T-Deck board definition from the tdeck-example project
+# This file is just a reference, the actual board definition is in the tdeck-example/boards directory
+tdeck.name=LilyGo T-Deck (ESP32-S3)
+tdeck.build.mcu=esp32s3
