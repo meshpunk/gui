@@ -4,6 +4,7 @@
 #include <TFT_eSPI.h>
 #include <Ticker.h> // Include ticker for LVGL timing
 #include <Wire.h>
+#include <LittleFS.h>
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -18,6 +19,11 @@ extern "C" {
 #define LILYGO_KB_BRIGHTNESS_CMD 0x01
 #define LILYGO_KB_ALT_B_BRIGHTNESS_CMD 0x02
 
+// Data directory paths
+#define LUA_PATH "/lua/"
+#define SOUNDS_PATH "/sounds/"
+#define IMAGES_PATH "/images/"
+
 // Ticker for LVGL timing
 Ticker lvgl_ticker;
 
@@ -31,6 +37,55 @@ lua_State *L = NULL;
 // Keyboard variables
 bool keyboard_available = false;
 char last_key = 0;
+
+// Filesystem variables
+bool fs_mounted = false;
+
+// Helper functions for Lua file loading
+String readFile(const char* filename) {
+  if (!fs_mounted) {
+    Serial.println("Filesystem not mounted!");
+    return "";
+  }
+  
+  fs::File file = LittleFS.open(filename, "r");
+  if (!file) {
+    Serial.print("Failed to open file: ");
+    Serial.println(filename);
+    return "";
+  }
+  
+  String content = "";
+  while (file.available()) {
+    content += (char)file.read();
+  }
+  file.close();
+  
+  return content;
+}
+
+bool loadLuaScript(lua_State *L, const char* filename) {
+  String scriptPath = String(LUA_PATH) + filename;
+  String script = readFile(scriptPath.c_str());
+  
+  if (script.length() == 0) {
+    Serial.print("Error loading Lua script: ");
+    Serial.println(scriptPath);
+    return false;
+  }
+  
+  Serial.print("Executing Lua script: ");
+  Serial.println(scriptPath);
+  
+  if (luaL_dostring(L, script.c_str()) != 0) {
+    Serial.print("Lua error: ");
+    Serial.println(lua_tostring(L, -1));
+    lua_pop(L, 1);
+    return false;
+  }
+  
+  return true;
+}
 
 // LilyGo T-Deck control backlight chip has 16 levels of adjustment range
 // The adjustable range is 0~15, 0 is the minimum brightness, 15 is the maximum
@@ -274,170 +329,134 @@ void setupLuaVGL() {
     return;
   }
 
-  // lv_obj_t *root = lv_obj_create(lv_scr_act());
-  // lv_obj_set_size(root, LV_PCT(TFT_HEIGHT), LV_PCT(TFT_WIDTH));
-  // lv_obj_set_style_outline_width(root, 2, 0);
-  // lv_obj_set_style_bg_color(root, lv_color_hex(0xff00ff), 0);
-  // lv_obj_set_style_bg_opa(root, LV_OPA_50, 0);
-
   // Open standard Lua libraries
   luaL_openlibs(L);
 
   // Initialize LuaVGL
   luaL_requiref(L, "lvgl", luaopen_lvgl, 1);
   lua_pop(L, 1);
+  
+  // Add Lua loader for require function
+  lua_getglobal(L, "package");
+  lua_getfield(L, -1, "searchers");
+  
+  // Get the length of the searchers table
+  int len = lua_rawlen(L, -1);
+  
+  // Custom loader function for the filesystem
+  lua_pushcfunction(L, [](lua_State *L) -> int {
+    const char *modname = luaL_checkstring(L, 1);
+    String filename = String(LUA_PATH) + modname + ".lua";
+    
+    String content = readFile(filename.c_str());
+    if (content.length() == 0) {
+      lua_pushfstring(L, "\n\tno file '%s' in LittleFS", filename.c_str());
+      return 1;  // Return the error message
+    }
+    
+    if (luaL_loadbuffer(L, content.c_str(), content.length(), filename.c_str()) != 0) {
+      lua_error(L);
+    }
+    
+    return 1;  // Return the loaded chunk
+  });
+  
+  // Add our loader to the searchers table
+  lua_rawseti(L, -2, len + 1);
+  lua_pop(L, 2);  // Pop package.searchers and package
 
-  // Load and run LuaVGL hello world script
-  const char *luaScript = R"(
-        local fixture_posts = {
-            {
-                content = "Alright, top folk punk bands?", 
-                avatar_id = "a1b2c3d4", 
-                post_time = os.time() - 7200
-            },
-            {
-                content = "Against Me! Laura Jane Grace is legendary.", 
-                avatar_id = "e5f6g7h8", 
-                post_time = os.time() - 7100
-            },
-            {
-                content = "Yeah, but also The Front Bottoms. Their early stuff is peak folk punk.", 
-                avatar_id = "i9j0k1l2", 
-                post_time = os.time() - 7000
-            },
-            {
-                content = "AJJ deserves a mention. That raw energy is unmatched!", 
-                avatar_id = "a1b2c3d4", 
-                post_time = os.time() - 6900
-            },
-            {
-                content = "Definitely. And Defiance, Ohio. They had some bangers!", 
-                avatar_id = "e5f6g7h8", 
-                post_time = os.time() - 6800
-            },
-            {
-                content = "Pat the Bunny. Dude basically IS folk punk.", 
-                avatar_id = "i9j0k1l2", 
-                post_time = os.time() - 6700
-            },
-            {
-                content = "True. And don't forget Mischief Brew. Erik Petersen was a genius.", 
-                avatar_id = "a1b2c3d4", 
-                post_time = os.time() - 6600
-            },
-            {
-                content = "Okay, but best album from this whole scene?", 
-                avatar_id = "e5f6g7h8", 
-                post_time = os.time() - 6500
-            },
-            {
-                content = "Reinventing Axl Rose by Against Me! No contest.", 
-                avatar_id = "i9j0k1l2", 
-                post_time = os.time() - 6400
-            },
-            {
-                content = "Hard agree. That album defined a whole era.", 
-                avatar_id = "a1b2c3d4", 
-                post_time = os.time() - 6300
-            }
-        }
+  // Setup print function to redirect to Serial
+  luaL_dostring(L, R"(
+    local old_print = print
+    print = function(...)
+      local args = {...}
+      local text = ""
+      for i, v in ipairs(args) do
+        text = text .. tostring(v) .. (i < #args and "\t" or "")
+      end
+      old_print(text)
+    end
+  )");
 
-        local function createBtn(parent, name)
-            local root = parent:Button {
-                w = lvgl.SIZE_CONTENT,
-                h = lvgl.SIZE_CONTENT,
-            }
-
-            root:onClicked(function()
-                print("Button clicked!")
-                root:set { bg_color = "#00FF00" }
-            end)
-
-            root:Label {
-                text = name,
-                text_color = "#333",
-                align = lvgl.ALIGN.CENTER,
-            }
-        end
-
-        -- Create a simple hello world label
+  Serial.println("LuaVGL environment initialized");
+  
+  // Load and run the main script
+  if (fs_mounted) {
+    if (loadLuaScript(L, "messenger.lua")) {
+      Serial.println("Messenger app loaded successfully");
+    } else {
+      Serial.println("Failed to load messenger app, using fallback");
+      
+      // Fallback to simple embedded script if the file isn't found
+      const char *fallbackScript = R"(
+        -- Fallback script when filesystem is not available
         local root = lvgl.Object()
         root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
-
-        -- flex layout and align
-        root:set {
-            flex = {
-                flex_direction = "column",
-                flex_wrap = "nowrap",
-                justify_content = "start",
-                align_items = "start",
-            },
-            w = 320,
-            h = 240,
-            align = lvgl.ALIGN.TOP_LEFT
+        
+        root:Label {
+          text = "Filesystem Error\nMake sure to upload data files",
+          align = lvgl.ALIGN.CENTER
         }
-
-        -- Create list of posts
-        for _, post in ipairs(fixture_posts) do
-            local post_label = root:Label {
-                text = string.format("%s\n[%s]", post.content, post.avatar_id),
-                align = lvgl.ALIGN.LEFT_MID
-            }
-        end
-
-        createBtn(root, "Button")
-
-        -- Create textarea
-        local ta = root:Textarea {
-            password_mode = false,
-            one_line = true,
-            text = "Input text here",
-            w = lvgl.SIZE_CONTENT,
-            h = lvgl.SIZE_CONTENT,
-            pad_all = 2,
-            align = lvgl.ALIGN.TOP_MID,
-        }
-
-        print("created textarea: ", ta)
-
-        -- second anim example with playback
-        local obj = parent:Object {
-            bg_color = "#F00000",
-            radius = lvgl.RADIUS_CIRCLE,
-            size = 64,
-            x = 64,
-            y = 64
-        }
-        obj:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-        --- @type AnimPara
-        local animPara = {
-            run = true,
-            start_value = 16,
-            end_value = 32,
-            duration = 1000,
-            repeat_count = lvgl.ANIM_REPEAT_INFINITE,
-            path = "ease_in_out",
-        }
-
-        animPara.exec_cb = function(obj, value)
-            obj:set { size = value }
-        end
-
-        obj:Anim(animPara)
-
+        
+        return root
+      )";
+      
+      if (luaL_dostring(L, fallbackScript) != 0) {
+        Serial.print("Fallback script error: ");
+        Serial.println(lua_tostring(L, -1));
+        lua_pop(L, 1);
+      }
+    }
+  } else {
+    Serial.println("Filesystem not mounted, can't load Lua scripts");
+    
+    // Simple fallback UI when no filesystem
+    const char *fallbackScript = R"(
+      -- Fallback script when filesystem is not available
+      local root = lvgl.Object()
+      root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+      
+      root:Label {
+        text = "Filesystem Error\nMake sure to upload data files",
+        align = lvgl.ALIGN.CENTER
+      }
+      
+      return root
     )";
-
-  if (luaL_dostring(L, luaScript) != 0) {
-    Serial.print("LuaVGL script error: ");
-    Serial.println(lua_tostring(L, -1));
-    lua_pop(L, 1);
+    
+    if (luaL_dostring(L, fallbackScript) != 0) {
+      Serial.print("Fallback script error: ");
+      Serial.println(lua_tostring(L, -1));
+      lua_pop(L, 1);
+    }
   }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("MeshPunk LuaVGL Demo");
+  
+  // Initialize filesystem
+  if (LittleFS.begin(true)) {
+    fs_mounted = true;
+    Serial.println("LittleFS mounted successfully");
+    
+    // List root directory contents
+    fs::File root = LittleFS.open("/");
+    fs::File file = root.openNextFile();
+    
+    Serial.println("LittleFS contents:");
+    while (file) {
+      Serial.print("  ");
+      Serial.print(file.name());
+      Serial.print(" (");
+      Serial.print(file.size());
+      Serial.println(" bytes)");
+      file = root.openNextFile();
+    }
+  } else {
+    Serial.println("Error mounting LittleFS");
+  }
 
   // The board peripheral power control pin needs to be set to HIGH when using
   // the peripheral
