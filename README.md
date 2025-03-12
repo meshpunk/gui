@@ -8,6 +8,19 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
 - Runs on the LilyGo T-Deck hardware
 - Demonstrates touch and display capabilities
 - Uses PlatformIO for easy building and deployment
+- Loads Lua scripts from the filesystem for easy development
+
+## Project Structure
+
+- `/src` - Main C++ code
+  - `main.cpp` - Main application code
+  - `utilities.h` - T-Deck pin definitions and utilities
+- `/data` - Data files that get uploaded to the device filesystem
+  - `/lua` - Lua scripts
+    - `messenger.lua` - Main messenger application
+    - `utils.lua` - Utility functions
+  - `/sounds` - Sound files
+  - `/images` - Image files
 
 ## Requirements
 
@@ -15,7 +28,7 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
 - T-Deck device
 - Git (for submodules)
 
-## Building
+## Building and Development
 
 1. Clone this repository
 2. Initialize the submodules:
@@ -23,7 +36,16 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
    git submodule update --init --recursive
    ```
 3. Open in PlatformIO
-4. Build and upload to your T-Deck device
+4. Edit Lua scripts in the `/data/lua` directory
+5. Build and upload to your T-Deck device:
+   ```
+   pio run --target upload
+   ```
+   This will automatically upload both the firmware and the filesystem data.
+6. To upload only the filesystem data (after changing Lua scripts):
+   ```
+   pio run --target uploadfs
+   ```
 
 ## Submodules
 
@@ -32,7 +54,21 @@ This project uses the following Git submodules:
 
 ## Usage
 
-The example displays a "Hello MeshPunk World!" message and a button that, when clicked, changes the message text.
+The example loads the `messenger.lua` script from the filesystem and displays a simple messenger UI. You can edit the Lua scripts in your IDE with proper syntax highlighting and then upload just the filesystem to quickly iterate on your UI design.
+
+### Developing Lua Scripts
+
+1. Edit the Lua scripts in `/data/lua`
+2. Upload the filesystem with `pio run --target uploadfs`
+3. The device will automatically load the updated scripts
+
+### Adding Additional Scripts
+
+You can create additional Lua scripts in the `/data/lua` directory. Scripts can be loaded from other scripts using `require`:
+
+```lua
+local utils = require('utils')
+```
 
 ## License
 

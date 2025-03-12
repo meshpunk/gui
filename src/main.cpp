@@ -4,6 +4,7 @@
 #include <TFT_eSPI.h>
 #include <Ticker.h> // Include ticker for LVGL timing
 #include <Wire.h>
+#include <LittleFS.h>
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -18,6 +19,11 @@ extern "C" {
 #define LILYGO_KB_BRIGHTNESS_CMD 0x01
 #define LILYGO_KB_ALT_B_BRIGHTNESS_CMD 0x02
 
+// Data directory paths
+#define LUA_PATH "/lua/"
+#define SOUNDS_PATH "/sounds/"
+#define IMAGES_PATH "/images/"
+
 // Ticker for LVGL timing
 Ticker lvgl_ticker;
 
@@ -31,6 +37,55 @@ lua_State *L = NULL;
 // Keyboard variables
 bool keyboard_available = false;
 char last_key = 0;
+
+// Filesystem variables
+bool fs_mounted = false;
+
+// Helper functions for Lua file loading
+String readFile(const char* filename) {
+  if (!fs_mounted) {
+    Serial.println("Filesystem not mounted!");
+    return "";
+  }
+  
+  fs::File file = LittleFS.open(filename, "r");
+  if (!file) {
+    Serial.print("Failed to open file: ");
+    Serial.println(filename);
+    return "";
+  }
+  
+  String content = "";
+  while (file.available()) {
+    content += (char)file.read();
+  }
+  file.close();
+  
+  return content;
+}
+
+bool loadLuaScript(lua_State *L, const char* filename) {
+  String scriptPath = String(LUA_PATH) + filename;
+  String script = readFile(scriptPath.c_str());
+  
+  if (script.length() == 0) {
+    Serial.print("Error loading Lua script: ");
+    Serial.println(scriptPath);
+    return false;
+  }
+  
+  Serial.print("Executing Lua script: ");
+  Serial.println(scriptPath);
+  
+  if (luaL_dostring(L, script.c_str()) != 0) {
+    Serial.print("Lua error: ");
+    Serial.println(lua_tostring(L, -1));
+    lua_pop(L, 1);
+    return false;
+  }
+  
+  return true;
+}
 
 // LilyGo T-Deck control backlight chip has 16 levels of adjustment range
 // The adjustable range is 0~15, 0 is the minimum brightness, 15 is the maximum
@@ -246,12 +301,12 @@ static void btn_event_handler(lv_event_t *e) {
 // Create a simple UI
 void createUI() {
   // Get the active screen
-  lv_obj_t *scr = lv_scr_act();
+  // lv_obj_t *scr = lv_scr_act();
 
   // Create a label
-  label = lv_label_create(scr);
-  lv_label_set_text(label, "Hello MeshPunk World!");
-  lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
+  // label = lv_label_create(scr);
+  // lv_label_set_text(label, "Hello MeshPunk World!");
+  // lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
 
   // // Create a button
   // lv_obj_t *btn = lv_btn_create(scr);
@@ -274,116 +329,134 @@ void setupLuaVGL() {
     return;
   }
 
-  // lv_obj_t *root = lv_obj_create(lv_scr_act());
-  // lv_obj_set_size(root, LV_PCT(TFT_HEIGHT), LV_PCT(TFT_WIDTH));
-  // lv_obj_set_style_outline_width(root, 2, 0);
-  // lv_obj_set_style_bg_color(root, lv_color_hex(0xff00ff), 0);
-  // lv_obj_set_style_bg_opa(root, LV_OPA_50, 0);
-
   // Open standard Lua libraries
   luaL_openlibs(L);
 
   // Initialize LuaVGL
   luaL_requiref(L, "lvgl", luaopen_lvgl, 1);
   lua_pop(L, 1);
+  
+  // Add Lua loader for require function
+  lua_getglobal(L, "package");
+  lua_getfield(L, -1, "searchers");
+  
+  // Get the length of the searchers table
+  int len = lua_rawlen(L, -1);
+  
+  // Custom loader function for the filesystem
+  lua_pushcfunction(L, [](lua_State *L) -> int {
+    const char *modname = luaL_checkstring(L, 1);
+    String filename = String(LUA_PATH) + modname + ".lua";
+    
+    String content = readFile(filename.c_str());
+    if (content.length() == 0) {
+      lua_pushfstring(L, "\n\tno file '%s' in LittleFS", filename.c_str());
+      return 1;  // Return the error message
+    }
+    
+    if (luaL_loadbuffer(L, content.c_str(), content.length(), filename.c_str()) != 0) {
+      lua_error(L);
+    }
+    
+    return 1;  // Return the loaded chunk
+  });
+  
+  // Add our loader to the searchers table
+  lua_rawseti(L, -2, len + 1);
+  lua_pop(L, 2);  // Pop package.searchers and package
 
-  // Load and run LuaVGL hello world script
-  const char *luaScript = R"(
-        local function createBtn(parent, name)
-            local root = parent:Button {
-                w = lvgl.SIZE_CONTENT,
-                h = lvgl.SIZE_CONTENT,
-            }
+  // Setup print function to redirect to Serial
+  luaL_dostring(L, R"(
+    local old_print = print
+    print = function(...)
+      local args = {...}
+      local text = ""
+      for i, v in ipairs(args) do
+        text = text .. tostring(v) .. (i < #args and "\t" or "")
+      end
+      old_print(text)
+    end
+  )");
 
-            root:onClicked(function()
-                print("Button clicked!")
-                root:set { bg_color = "#00FF00" }
-            end)
-
-            root:Label {
-                text = name,
-                text_color = "#333",
-                align = lvgl.ALIGN.CENTER,
-            }
-        end
-
-        -- Create a simple hello world label
+  Serial.println("LuaVGL environment initialized");
+  
+  // Load and run the main script
+  if (fs_mounted) {
+    if (loadLuaScript(L, "messenger.lua")) {
+      Serial.println("Messenger app loaded successfully");
+    } else {
+      Serial.println("Failed to load messenger app, using fallback");
+      
+      // Fallback to simple embedded script if the file isn't found
+      const char *fallbackScript = R"(
+        -- Fallback script when filesystem is not available
         local root = lvgl.Object()
         root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
-
-        -- flex layout and align
-        root:set {
-            flex = {
-                flex_direction = "column",
-                flex_wrap = "wrap",
-                justify_content = "center",
-                align_items = "center",
-                align_content = "center",
-            },
-            w = 320,
-            h = 240,
-            align = lvgl.ALIGN.CENTER
+        
+        root:Label {
+          text = "Filesystem Error\nMake sure to upload data files",
+          align = lvgl.ALIGN.CENTER
         }
-
-        label = root:Label {
-            text = string.format("Hello %03d", 123),
-            text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
-            align = lvgl.ALIGN.CENTER
-        }        
-
-        createBtn(root, "Button")
-
-        -- Create textarea
-        local ta = root:Textarea {
-            password_mode = false,
-            one_line = true,
-            text = "Input text here",
-            w = lvgl.SIZE_CONTENT,
-            h = lvgl.SIZE_CONTENT,
-            pad_all = 2,
-            align = lvgl.ALIGN.TOP_MID,
-        }
-
-        print("created textarea: ", ta)
-
-        -- second anim example with playback
-        local obj = parent:Object {
-            bg_color = "#F00000",
-            radius = lvgl.RADIUS_CIRCLE,
-            size = 64,
-            x = 64,
-            y = 64
-        }
-        obj:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-        --- @type AnimPara
-        local animPara = {
-            run = true,
-            start_value = 16,
-            end_value = 32,
-            duration = 1000,
-            repeat_count = lvgl.ANIM_REPEAT_INFINITE,
-            path = "ease_in_out",
-        }
-
-        animPara.exec_cb = function(obj, value)
-            obj:set { size = value }
-        end
-
-        obj:Anim(animPara)
-
+        
+        return root
+      )";
+      
+      if (luaL_dostring(L, fallbackScript) != 0) {
+        Serial.print("Fallback script error: ");
+        Serial.println(lua_tostring(L, -1));
+        lua_pop(L, 1);
+      }
+    }
+  } else {
+    Serial.println("Filesystem not mounted, can't load Lua scripts");
+    
+    // Simple fallback UI when no filesystem
+    const char *fallbackScript = R"(
+      -- Fallback script when filesystem is not available
+      local root = lvgl.Object()
+      root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+      
+      root:Label {
+        text = "Filesystem Error\nMake sure to upload data files",
+        align = lvgl.ALIGN.CENTER
+      }
+      
+      return root
     )";
-
-  if (luaL_dostring(L, luaScript) != 0) {
-    Serial.print("LuaVGL script error: ");
-    Serial.println(lua_tostring(L, -1));
-    lua_pop(L, 1);
+    
+    if (luaL_dostring(L, fallbackScript) != 0) {
+      Serial.print("Fallback script error: ");
+      Serial.println(lua_tostring(L, -1));
+      lua_pop(L, 1);
+    }
   }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("MeshPunk LuaVGL Demo");
+  
+  // Initialize filesystem
+  if (LittleFS.begin(true)) {
+    fs_mounted = true;
+    Serial.println("LittleFS mounted successfully");
+    
+    // List root directory contents
+    fs::File root = LittleFS.open("/");
+    fs::File file = root.openNextFile();
+    
+    Serial.println("LittleFS contents:");
+    while (file) {
+      Serial.print("  ");
+      Serial.print(file.name());
+      Serial.print(" (");
+      Serial.print(file.size());
+      Serial.println(" bytes)");
+      file = root.openNextFile();
+    }
+  } else {
+    Serial.println("Error mounting LittleFS");
+  }
 
   // The board peripheral power control pin needs to be set to HIGH when using
   // the peripheral
@@ -464,35 +537,6 @@ void setup() {
 
   // Create UI
   createUI();
-
-  // Create a test textarea for keyboard input
-  if (keyboard_available) {
-    // Get the active screen
-    lv_obj_t *scr = lv_scr_act();
-
-    // Create a label for instructions
-    lv_obj_t *instructions = lv_label_create(scr);
-    lv_label_set_text(instructions, "Testing keyboard input:");
-    lv_obj_align(instructions, LV_ALIGN_TOP_MID, 0, 50);
-
-    // Create a text area for keyboard input testing
-    lv_obj_t *ta = lv_textarea_create(scr);
-    lv_obj_set_size(ta, 280, 60);
-    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, 80);
-    lv_textarea_set_placeholder_text(ta, "Type with keyboard...");
-    lv_obj_add_state(ta, LV_STATE_FOCUSED); // Give it initial focus
-
-    // Add textarea to keyboard group
-    lv_group_t *g = lv_group_get_default();
-    if (g) {
-      lv_group_add_obj(g, ta);
-
-      // Set it as the default focused object
-      lv_group_focus_obj(ta);
-
-      // Serial.println("Added textarea to keyboard group with focus");
-    }
-  }
 
   // Adjust backlight
   pinMode(BOARD_BL_PIN, OUTPUT);
