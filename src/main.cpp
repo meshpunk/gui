@@ -2,6 +2,7 @@
 #include "utilities.h"
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+#include <Ticker.h>  // Include ticker for LVGL timing
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -10,6 +11,9 @@ extern "C" {
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
+
+// Ticker for LVGL timing
+Ticker lvgl_ticker;
 
 // LVGL display and touch globals
 TFT_eSPI tft;
@@ -302,6 +306,11 @@ void setup() {
 
   // Set mirror xy
   touch.setMirrorXY(false, true);
+
+  // LVGL tick function
+  lvgl_ticker.attach_ms(5, []() {
+    lv_tick_inc(5); // Increment LVGL tick counter every 5ms
+  });
 
   // Initialize LVGL
   setupLvgl();
