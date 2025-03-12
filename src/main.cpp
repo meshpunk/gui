@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <Ticker.h> // Include ticker for LVGL timing
+#include <Wire.h>
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -11,6 +12,11 @@ extern "C" {
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
+
+// Keyboard I2C defines
+#define LILYGO_KB_SLAVE_ADDRESS 0x55
+#define LILYGO_KB_BRIGHTNESS_CMD 0x01
+#define LILYGO_KB_ALT_B_BRIGHTNESS_CMD 0x02
 
 // Ticker for LVGL timing
 Ticker lvgl_ticker;
@@ -21,6 +27,10 @@ TouchDrvGT911 touch;
 
 // LuaVGL state
 lua_State *L = NULL;
+
+// Keyboard variables
+bool keyboard_available = false;
+char last_key = 0;
 
 // LilyGo T-Deck control backlight chip has 16 levels of adjustment range
 // The adjustable range is 0~15, 0 is the minimum brightness, 15 is the maximum
@@ -67,6 +77,61 @@ int16_t x[5], y[5];
 // Debug flag for touch
 bool touch_debug = true;
 unsigned long last_touch_debug = 0;
+
+// Keyboard functions
+void setKeyboardBrightness(uint8_t value) {
+  if (!keyboard_available)
+    return;
+
+  Wire.beginTransmission(LILYGO_KB_SLAVE_ADDRESS);
+  Wire.write(LILYGO_KB_BRIGHTNESS_CMD);
+  Wire.write(value);
+  Wire.endTransmission();
+}
+
+void setKeyboardDefaultBrightness(uint8_t value) {
+  if (!keyboard_available)
+    return;
+
+  Wire.beginTransmission(LILYGO_KB_SLAVE_ADDRESS);
+  Wire.write(LILYGO_KB_ALT_B_BRIGHTNESS_CMD);
+  Wire.write(value);
+  Wire.endTransmission();
+}
+
+// LVGL keyboard read callback
+static void keyboard_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
+  // Read key from keyboard
+  char keyValue = 0;
+  Wire.requestFrom(LILYGO_KB_SLAVE_ADDRESS, 1);
+  if (Wire.available() > 0) {
+    keyValue = Wire.read();
+    if (keyValue != 0) {
+      last_key = keyValue;
+      Serial.print("Key pressed: ");
+      Serial.println(keyValue);
+
+      // Map special keys if needed
+      if (keyValue == 13) { // Enter
+        data->key = LV_KEY_ENTER;
+      } else if (keyValue == 27) { // Escape
+        data->key = LV_KEY_ESC;
+      } else if (keyValue == 8) { // Backspace
+        data->key = LV_KEY_BACKSPACE;
+      } else if (keyValue == 9) { // Tab
+        data->key = LV_KEY_NEXT;
+      } else {
+        data->key = keyValue;
+      }
+
+      data->state = LV_INDEV_STATE_PRESSED;
+      return;
+    }
+  }
+
+  // No key pressed
+  data->state = LV_INDEV_STATE_RELEASED;
+}
 
 static void touchpad_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
   data->state = LV_INDEV_STATE_RELEASED;
@@ -118,10 +183,23 @@ void setupLvgl() {
   lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_0);
 
   // Register a touchscreen input device
-  lv_indev_t *indev = lv_indev_create();
-  lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
-  lv_indev_set_read_cb(indev, touchpad_read_cb);
-  lv_indev_set_display(indev, disp);
+  lv_indev_t *touch_indev = lv_indev_create();
+  lv_indev_set_type(touch_indev, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(touch_indev, touchpad_read_cb);
+  lv_indev_set_display(touch_indev, disp);
+
+  // Register keyboard input device if available
+  if (keyboard_available) {
+    lv_indev_t *kb_indev = lv_indev_create();
+    lv_indev_set_type(kb_indev, LV_INDEV_TYPE_KEYPAD);
+    lv_indev_set_read_cb(kb_indev, keyboard_read_cb);
+
+    // Create and assign a default group
+    lv_group_t *g = lv_group_create();
+    lv_indev_set_group(kb_indev, g);
+
+    Serial.println("Keyboard input device registered with LVGL");
+  }
 }
 
 // LVGL UI elements
@@ -330,6 +408,19 @@ void setup() {
   // Set mirror xy
   touch.setMirrorXY(false, true);
 
+  // Initialize keyboard
+  Wire.beginTransmission(LILYGO_KB_SLAVE_ADDRESS);
+  if (Wire.endTransmission() == 0) {
+    keyboard_available = true;
+    Serial.println("T-Deck keyboard found!");
+
+    // Set initial keyboard brightness
+    setKeyboardDefaultBrightness(127);
+    setKeyboardBrightness(200);
+  } else {
+    Serial.println("T-Deck keyboard not found!");
+  }
+
   // LVGL tick function
   lvgl_ticker.attach_ms(5, []() {
     lv_tick_inc(5); // Increment LVGL tick counter every 5ms
@@ -343,6 +434,25 @@ void setup() {
 
   // Create UI
   createUI();
+
+  // Create a test textarea for keyboard input
+  if (keyboard_available) {
+    // Get the active screen
+    lv_obj_t *scr = lv_scr_act();
+
+    // Create a text area for keyboard input testing
+    lv_obj_t *ta = lv_textarea_create(scr);
+    lv_obj_set_size(ta, 200, 40);
+    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, 70);
+    lv_textarea_set_placeholder_text(ta, "Type with keyboard...");
+
+    // Add to keyboard group
+    lv_group_t *g = lv_group_get_default();
+    if (g) {
+      lv_group_add_obj(g, ta);
+      Serial.println("Added textarea to keyboard group");
+    }
+  }
 
   // Adjust backlight
   pinMode(BOARD_BL_PIN, OUTPUT);
@@ -366,6 +476,24 @@ void loop() {
       }
     }
     last_direct_check = millis();
+  }
+
+  // Check keyboard directly (useful for debugging)
+  static unsigned long last_kb_check = 0;
+  if (keyboard_available && millis() - last_kb_check > 100) {
+    char keyValue = 0;
+    Wire.requestFrom(LILYGO_KB_SLAVE_ADDRESS, 1);
+    if (Wire.available() > 0) {
+      keyValue = Wire.read();
+      if (keyValue != 0) {
+        Serial.print("Direct keyboard check: key=");
+        Serial.print(keyValue);
+        Serial.print(" (");
+        Serial.print((int)keyValue);
+        Serial.println(")");
+      }
+    }
+    last_kb_check = millis();
   }
 
   delay(5);
