@@ -24,12 +24,15 @@ end
 -- Create a simple hello world label
 local root = lvgl.Object()
 root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+root:clear_flag(lvgl.FLAG.SCROLLABLE)
 
 -- flex layout and align
 root:set {
     w = lvgl.HOR_RES(),
     h = lvgl.VER_RES(),
-    align = lvgl.ALIGN.TOP_LEFT
+    align = lvgl.ALIGN.TOP_LEFT,
+    pad_all = 0,
+    border_width = 0,
 }
 
 label = root:Label {
@@ -40,10 +43,10 @@ label = root:Label {
 
 local form = root:Object {
     flex = {
-        flex_direction = "row",
-        align = lvgl.ALIGN.BOTTOM_MID,
+        flex_direction = "row"
     },
     border_width = 0,
+    y = lvgl.VER_RES() - 55,
     w = lvgl.HOR_RES(),
     h = 40,
     pad_all = 0, -- Add some padding for aesthetics
@@ -57,7 +60,7 @@ local ta = form:Textarea {
     placeholder = "Type a message...",
     w = lvgl.PCT(69), -- 69% of parent width
     h = 40,
-    align = lvgl.ALIGN.LEFT_MID
+    align = lvgl.ALIGN.LEFT_MID,
 }
 
 local btn = createBtn(form, "Send")
