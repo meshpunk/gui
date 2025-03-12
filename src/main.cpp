@@ -99,38 +99,66 @@ void setKeyboardDefaultBrightness(uint8_t value) {
   Wire.endTransmission();
 }
 
+// Keyboard state tracking variables
+static uint32_t last_key_code = 0;
+static bool key_is_new = false;
+static uint32_t last_key_time = 0;
+
 // LVGL keyboard read callback
 static void keyboard_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
+  static bool was_pressed = false;
+  uint32_t current_time = millis();
+  
   // Read key from keyboard
   char keyValue = 0;
   Wire.requestFrom(LILYGO_KB_SLAVE_ADDRESS, 1);
   if (Wire.available() > 0) {
     keyValue = Wire.read();
+    
     if (keyValue != 0) {
-      last_key = keyValue;
-      Serial.print("Key pressed: ");
-      Serial.println(keyValue);
-
-      // Map special keys if needed
-      if (keyValue == 13) { // Enter
-        data->key = LV_KEY_ENTER;
-      } else if (keyValue == 27) { // Escape
-        data->key = LV_KEY_ESC;
-      } else if (keyValue == 8) { // Backspace
-        data->key = LV_KEY_BACKSPACE;
-      } else if (keyValue == 9) { // Tab
-        data->key = LV_KEY_NEXT;
-      } else {
-        data->key = keyValue;
+      // Check if this is a new key press or key has been held long enough for repeat
+      if (!was_pressed || (last_key_code != keyValue) || 
+          (current_time - last_key_time > 300)) {
+        
+        last_key_code = keyValue;
+        last_key_time = current_time;
+        key_is_new = true;
+        was_pressed = true;
+        
+        Serial.print("Key registered: ");
+        Serial.print(keyValue);
+        Serial.print(" (");
+        Serial.print((int)keyValue);
+        Serial.println(")");
       }
-
-      data->state = LV_INDEV_STATE_PRESSED;
-      return;
+    } else {
+      was_pressed = false;
     }
   }
-
-  // No key pressed
-  data->state = LV_INDEV_STATE_RELEASED;
+  
+  // Report key press to LVGL
+  if (key_is_new) {
+    data->state = LV_INDEV_STATE_PRESSED;
+    key_is_new = false;
+    
+    // Map special keys
+    if (last_key_code == 13) { // Enter
+      data->key = LV_KEY_ENTER;
+    } else if (last_key_code == 27) { // Escape
+      data->key = LV_KEY_ESC;
+    } else if (last_key_code == 8) { // Backspace
+      data->key = LV_KEY_BACKSPACE;
+    } else if (last_key_code == 9) { // Tab
+      data->key = LV_KEY_NEXT;
+    } else {
+      data->key = last_key_code;
+    }
+    
+    Serial.print("Sending key to LVGL: ");
+    Serial.println((char)data->key);
+  } else {
+    data->state = LV_INDEV_STATE_RELEASED;
+  }
 }
 
 static void touchpad_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
@@ -169,7 +197,9 @@ void setupLvgl() {
 
   lv_init();
 
-  lv_group_set_default(lv_group_create());
+  // Create a default group for focusable objects
+  lv_group_t *default_group = lv_group_create();
+  lv_group_set_default(default_group);
 
   // Create a display
   lv_display_t *disp = lv_display_create(TFT_HEIGHT, TFT_WIDTH);
@@ -194,9 +224,8 @@ void setupLvgl() {
     lv_indev_set_type(kb_indev, LV_INDEV_TYPE_KEYPAD);
     lv_indev_set_read_cb(kb_indev, keyboard_read_cb);
 
-    // Create and assign a default group
-    lv_group_t *g = lv_group_create();
-    lv_indev_set_group(kb_indev, g);
+    // Connect keyboard to the default group
+    lv_indev_set_group(kb_indev, lv_group_get_default());
 
     Serial.println("Keyboard input device registered with LVGL");
   }
@@ -439,18 +468,28 @@ void setup() {
   if (keyboard_available) {
     // Get the active screen
     lv_obj_t *scr = lv_scr_act();
-
+    
+    // Create a label for instructions
+    lv_obj_t *instructions = lv_label_create(scr);
+    lv_label_set_text(instructions, "Testing keyboard input:");
+    lv_obj_align(instructions, LV_ALIGN_TOP_MID, 0, 50);
+    
     // Create a text area for keyboard input testing
     lv_obj_t *ta = lv_textarea_create(scr);
-    lv_obj_set_size(ta, 200, 40);
-    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, 70);
+    lv_obj_set_size(ta, 280, 60);
+    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, 80);
     lv_textarea_set_placeholder_text(ta, "Type with keyboard...");
-
-    // Add to keyboard group
+    lv_obj_add_state(ta, LV_STATE_FOCUSED); // Give it initial focus
+    
+    // Add textarea to keyboard group
     lv_group_t *g = lv_group_get_default();
     if (g) {
       lv_group_add_obj(g, ta);
-      Serial.println("Added textarea to keyboard group");
+      
+      // Set it as the default focused object
+      lv_group_focus_obj(ta);
+      
+      Serial.println("Added textarea to keyboard group with focus");
     }
   }
 
