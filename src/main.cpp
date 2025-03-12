@@ -225,6 +225,19 @@ void setupLuaVGL() {
 
         createBtn(root, "Button")
 
+        -- Create textarea
+        local ta = root:Textarea {
+            password_mode = false,
+            one_line = true,
+            text = "Input text here",
+            w = lvgl.SIZE_CONTENT,
+            h = lvgl.SIZE_CONTENT,
+            pad_all = 2,
+            align = lvgl.ALIGN.TOP_MID,
+        }
+
+        print("created textarea: ", ta)
+
         -- second anim example with playback
         local obj = parent:Object {
             bg_color = "#F00000",
@@ -258,39 +271,6 @@ void setupLuaVGL() {
     Serial.println(lua_tostring(L, -1));
     lua_pop(L, 1);
   }
-}
-
-// Function to create a native LVGL button for testing touch
-void createTestButton() {
-  // Get the active screen
-  lv_obj_t *scr = lv_scr_act();
-
-  // Create a button
-  lv_obj_t *btn = lv_btn_create(scr);
-  lv_obj_set_pos(btn, 50, 120);
-  lv_obj_set_size(btn, 120, 50);
-
-  // Add event handler
-  lv_obj_add_event_cb(
-      btn,
-      [](lv_event_t *e) {
-        Serial.println("NATIVE BUTTON CLICKED!");
-        lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
-        static uint8_t cnt = 0;
-        cnt++;
-
-        // Change the button's color to confirm the click
-        if (cnt % 2)
-          lv_obj_set_style_bg_color(btn, lv_color_hex(0xFF0000), 0);
-        else
-          lv_obj_set_style_bg_color(btn, lv_color_hex(0x0000FF), 0);
-      },
-      LV_EVENT_CLICKED, NULL);
-
-  // Add a label to the button
-  lv_obj_t *label = lv_label_create(btn);
-  lv_label_set_text(label, "Test Button");
-  lv_obj_center(label);
 }
 
 void setup() {
@@ -363,9 +343,6 @@ void setup() {
 
   // Create UI
   createUI();
-
-  // Create a native LVGL button for testing touch
-  createTestButton();
 
   // Adjust backlight
   pinMode(BOARD_BL_PIN, OUTPUT);
