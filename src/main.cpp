@@ -66,7 +66,7 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area,
   uint32_t h = (area->y2 - area->y1 + 1);
   tft.startWrite();
   tft.setAddrWindow(area->x1, area->y1, w, h);
-  tft.pushColors((uint16_t *)px_map, w * h, false);
+  tft.pushColors((uint16_t *)px_map, w * h, true);
   tft.endWrite();
   lv_display_flush_ready(disp);
 }
@@ -187,14 +187,15 @@ static void touchpad_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
 
 // Setup LVGL
 void setupLvgl() {
-#define LVGL_BUFFER_SIZE (TFT_WIDTH * TFT_HEIGHT * sizeof(lv_color_t))
+// #define LVGL_BUFFER_SIZE (TFT_WIDTH * TFT_HEIGHT * sizeof(lv_color_t))
+#define LVGL_BUFFER_LINES 240 // Choose a smaller chunk to fit into RAM
 
-  static uint8_t *buf = (uint8_t *)ps_malloc(LVGL_BUFFER_SIZE);
-  if (!buf) {
-    Serial.println("Memory allocation failed!");
-    delay(5000);
-    assert(buf);
-  }
+  // static uint8_t *buf = (uint8_t *)ps_malloc(LVGL_BUFFER_SIZE);
+  // if (!buf) {
+  //   Serial.println("Memory allocation failed!");
+  //   delay(5000);
+  //   assert(buf);
+  // }
 
   lv_init();
 
@@ -206,7 +207,19 @@ void setupLvgl() {
   lv_display_t *disp = lv_display_create(TFT_HEIGHT, TFT_WIDTH);
 
   // Initialize the buffer
-  lv_display_set_buffers(disp, buf, NULL, LVGL_BUFFER_SIZE,
+  static uint8_t *buf1 =
+      (uint8_t *)ps_malloc(TFT_WIDTH * LVGL_BUFFER_LINES * sizeof(lv_color_t));
+  static uint8_t *buf2 =
+      (uint8_t *)ps_malloc(TFT_WIDTH * LVGL_BUFFER_LINES * sizeof(lv_color_t));
+
+  if (!buf1 || !buf2) {
+    Serial.println("Memory allocation failed!");
+    delay(5000);
+    assert(buf1 && buf2);
+  }
+
+  lv_display_set_buffers(disp, buf1, buf2,
+                         TFT_WIDTH * LVGL_BUFFER_LINES * sizeof(lv_color_t),
                          LV_DISPLAY_RENDER_MODE_FULL);
 
   // Set display properties
@@ -504,19 +517,19 @@ void loop() {
   lv_timer_handler();
 
   // Check for touch directly from sensor (as additional test)
-  static unsigned long last_direct_check = 0;
-  if (millis() - last_direct_check > 300) {
-    if (touch.isPressed()) {
-      uint8_t touched = touch.getPoint(x, y, touch.getSupportTouchPoint());
-      if (touched > 0 && touch_debug) {
-        // Serial.print("Direct touch check: x=");
-        // Serial.print(x[0]);
-        // Serial.print(" y=");
-        // Serial.println(y[0]);
-      }
-    }
-    last_direct_check = millis();
-  }
+  // static unsigned long last_direct_check = 0;
+  // if (millis() - last_direct_check > 300) {
+  //   if (touch.isPressed()) {
+  //     uint8_t touched = touch.getPoint(x, y, touch.getSupportTouchPoint());
+  //     if (touched > 0 && touch_debug) {
+  //       // Serial.print("Direct touch check: x=");
+  //       // Serial.print(x[0]);
+  //       // Serial.print(" y=");
+  //       // Serial.println(y[0]);
+  //     }
+  //   }
+  //   last_direct_check = millis();
+  // }
 
   // Check keyboard directly (useful for debugging)
   // static unsigned long last_kb_check = 0;
@@ -536,5 +549,7 @@ void loop() {
   //   last_kb_check = millis();
   // }
 
-  delay(5);
+  vTaskDelay(pdMS_TO_TICKS(1)); // Minimize blocking
+
+  // delay(1);
 }
