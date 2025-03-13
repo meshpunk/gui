@@ -1,7 +1,7 @@
 #include "TouchDrvGT911.hpp"
 #include "utilities.h"
 #include <Arduino.h>
-#include <LittleFS.h>
+#include <SPIFFS.h>
 #include <TFT_eSPI.h>
 #include <Ticker.h> // Include ticker for LVGL timing
 #include <Wire.h>
@@ -41,7 +41,7 @@ char last_key = 0;
 // Filesystem variables
 bool fs_mounted = false;
 
-void meshCoreSetup();
+void meshCoreSetup(fs::FS *filesystem);
 void meshCoreLoop();
 
 // Helper functions for Lua file loading
@@ -51,7 +51,7 @@ String readFile(const char *filename) {
     return "";
   }
 
-  fs::File file = LittleFS.open(filename, "r");
+  fs::File file = SPIFFS.open(filename, "r");
   if (!file) {
     Serial.print("Failed to open file: ");
     Serial.println(filename);
@@ -79,6 +79,7 @@ bool loadLuaScript(lua_State *L, const char *filename) {
 
   Serial.print("Executing Lua script: ");
   Serial.println(scriptPath);
+  Serial.println(script);
 
   if (luaL_dostring(L, script.c_str()) != 0) {
     Serial.print("Lua error: ");
@@ -353,7 +354,7 @@ void setupLuaVGL() {
 
     String content = readFile(filename.c_str());
     if (content.length() == 0) {
-      lua_pushfstring(L, "\n\tno file '%s' in LittleFS", filename.c_str());
+      lua_pushfstring(L, "\n\tno file '%s' in SPIFFS", filename.c_str());
       return 1; // Return the error message
     }
 
@@ -440,16 +441,18 @@ void setup() {
   Serial.begin(115200);
   Serial.println("MeshPunk LuaVGL Demo");
 
+  // delay(5000);
+
   // Initialize filesystem
-  if (LittleFS.begin(true)) {
+  if (SPIFFS.begin(true)) {
     fs_mounted = true;
-    Serial.println("LittleFS mounted successfully");
+    Serial.println("SPIFFS mounted successfully");
 
     // List root directory contents
-    fs::File root = LittleFS.open("/");
+    fs::File root = SPIFFS.open("/");
     fs::File file = root.openNextFile();
 
-    Serial.println("LittleFS contents:");
+    Serial.println("SPIFFS contents:");
     while (file) {
       Serial.print("  ");
       Serial.print(file.name());
@@ -459,7 +462,7 @@ void setup() {
       file = root.openNextFile();
     }
   } else {
-    Serial.println("Error mounting LittleFS");
+    Serial.println("Error mounting SPIFFS");
   }
 
   // The board peripheral power control pin needs to be set to HIGH when using
@@ -529,7 +532,7 @@ void setup() {
   }
 
   // Initialize meshcore
-  meshCoreSetup();
+  // meshCoreSetup(&SPIFFS);
 
   // LVGL tick function
   lvgl_ticker.attach_ms(5, []() {
@@ -569,6 +572,7 @@ void loop() {
     last_direct_check = millis();
   }
 
+  // meshCoreLoop();
   // Check keyboard directly (useful for debugging)
   // static unsigned long last_kb_check = 0;
   // if (keyboard_available && millis() - last_kb_check > 100) {

@@ -732,9 +732,15 @@ void halt() {
 
 static char command[80];
 
-void meshCoreSetup() {
+// External filesystem pointer passed from main.cpp
+fs::FS *externalFS = nullptr;
+
+void meshCoreSetup(fs::FS *filesystem) {
   // Serial.begin(115200);
   // delay(1000);
+
+  // Store the filesystem reference
+  externalFS = filesystem;
 
   Serial.println("Initializing board");
 
@@ -790,17 +796,15 @@ void meshCoreSetup() {
 
   fast_rng.begin(radio.random(0x7FFFFFFF));
 
-  Serial.println("Initializing filesystem");
-
   FILESYSTEM *fs;
 #if defined(NRF52_PLATFORM)
   InternalFS.begin();
   fs = &InternalFS;
   IdentityStore store(InternalFS, "");
 #elif defined(ESP32)
-  SPIFFS.begin(true);
-  fs = &SPIFFS;
-  IdentityStore store(SPIFFS, "/identity");
+  // Use the filesystem passed from main.cpp
+  fs = externalFS;
+  IdentityStore store(*fs, "/identity");
 #else
 #error "need to define filesystem"
 #endif
@@ -826,34 +830,36 @@ void meshCoreSetup() {
 
   // send out initial Advertisement to the mesh
   the_mesh.sendSelfAdvertisement(2000);
+
+  Serial.println("MeshCoreSetup complete");
 }
 
 void meshCoreLoop() {
-  int len = strlen(command);
-  while (Serial.available() && len < sizeof(command) - 1) {
-    char c = Serial.read();
-    if (c != '\n') {
-      command[len++] = c;
-      command[len] = 0;
-    }
-    Serial.print(c);
-  }
-  if (len == sizeof(command) - 1) { // command buffer full
-    command[sizeof(command) - 1] = '\r';
-  }
+  // int len = strlen(command);
+  // while (Serial.available() && len < sizeof(command) - 1) {
+  //   char c = Serial.read();
+  //   if (c != '\n') {
+  //     command[len++] = c;
+  //     command[len] = 0;
+  //   }
+  //   Serial.print(c);
+  // }
+  // if (len == sizeof(command) - 1) { // command buffer full
+  //   command[sizeof(command) - 1] = '\r';
+  // }
 
-  if (len > 0 && command[len - 1] == '\r') { // received complete line
-    command[len - 1] = 0; // replace newline with C string null terminator
-    char reply[160];
-    the_mesh.getCLI()->handleCommand(
-        0, command, reply); // NOTE: there is no sender_timestamp via serial!
-    if (reply[0]) {
-      Serial.print("  -> ");
-      Serial.println(reply);
-    }
+  // if (len > 0 && command[len - 1] == '\r') { // received complete line
+  //   command[len - 1] = 0; // replace newline with C string null terminator
+  //   char reply[160];
+  //   the_mesh.getCLI()->handleCommand(
+  //       0, command, reply); // NOTE: there is no sender_timestamp via serial!
+  //   if (reply[0]) {
+  //     Serial.print("  -> ");
+  //     Serial.println(reply);
+  //   }
 
-    command[0] = 0; // reset command buffer
-  }
+  //   command[0] = 0; // reset command buffer
+  // }
 
   the_mesh.loop();
 }
