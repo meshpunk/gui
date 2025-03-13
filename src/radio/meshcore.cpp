@@ -770,8 +770,6 @@ void meshCoreSetup(fs::FS *filesystem) {
 
   Serial.println("Initializing radio");
 
-  delay(5000);
-
   int status =
       radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR,
                   RADIOLIB_SX126X_SYNC_WORD_PRIVATE, LORA_TX_POWER, 8, tcxo);

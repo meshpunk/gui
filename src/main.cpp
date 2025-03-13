@@ -246,6 +246,8 @@ static void touchpad_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
 
 // Setup LVGL
 void setupLvgl() {
+  Serial.println("Setting up LVGL");
+
 #define LVGL_BUFFER_SIZE (TFT_WIDTH * TFT_HEIGHT * sizeof(lv_color_t))
 
   static uint8_t *buf = (uint8_t *)ps_malloc(LVGL_BUFFER_SIZE);
@@ -256,6 +258,8 @@ void setupLvgl() {
   }
 
   lv_init();
+
+  Serial.println("LV Init success");
 
   // Create a default group for focusable objects
   lv_group_t *default_group = lv_group_create();
@@ -289,6 +293,8 @@ void setupLvgl() {
 
     Serial.println("Keyboard input device registered with LVGL");
   }
+
+  Serial.println("LVGL setup complete");
 }
 
 // LVGL UI elements
@@ -491,7 +497,7 @@ void setup() {
   Serial.println("Initializing display");
   tft.begin();
   tft.setRotation(1);
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_GREEN);
 
   // Set touch int input
   pinMode(BOARD_TOUCH_INT, INPUT);
@@ -531,9 +537,6 @@ void setup() {
     Serial.println("T-Deck keyboard not found!");
   }
 
-  // Initialize meshcore
-  // meshCoreSetup(&SPIFFS);
-
   // LVGL tick function
   lvgl_ticker.attach_ms(5, []() {
     lv_tick_inc(5); // Increment LVGL tick counter every 5ms
@@ -550,6 +553,18 @@ void setup() {
 
   // Adjust backlight
   pinMode(BOARD_BL_PIN, OUTPUT);
+
+  // Initialize meshcore
+  // meshCoreSetup(&SPIFFS);
+
+  // Flash brightness
+  for (int i = 0; i < 16; i++) {
+    setBrightness(i);
+    delay(50);
+    setBrightness(0);
+    delay(50);
+  }
+
   setBrightness(16);
 }
 
