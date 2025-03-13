@@ -1,0 +1,7 @@
+{
+  "name": "MeshCore",
+  "version": "1.0.0",
+  "build": {
+    "srcFilter": ["+<*>", "-<helpers/nrf52/*>", "-<helpers/ui/*>"]
+  }
+}

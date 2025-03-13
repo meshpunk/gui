@@ -701,7 +701,7 @@ public:
 RADIO_CLASS radio =
     new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, SPI);
 #elif defined(LILYGO_TLORA)
-SPIClass spi;
+extern SPIClass spi;
 RADIO_CLASS radio =
     new Module(P_LORA_NSS, P_LORA_DIO_0, P_LORA_RESET, P_LORA_DIO_1, spi);
 #elif defined(P_LORA_SCLK)
@@ -732,7 +732,7 @@ void halt() {
 
 static char command[80];
 
-void setup() {
+void meshCoreSetup() {
   Serial.begin(115200);
   delay(1000);
 
@@ -814,7 +814,7 @@ void setup() {
   the_mesh.sendSelfAdvertisement(2000);
 }
 
-void loop() {
+void meshCoreLoop() {
   int len = strlen(command);
   while (Serial.available() && len < sizeof(command) - 1) {
     char c = Serial.read();
