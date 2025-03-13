@@ -1,10 +1,10 @@
 #include "TouchDrvGT911.hpp"
 #include "utilities.h"
 #include <Arduino.h>
+#include <LittleFS.h>
 #include <TFT_eSPI.h>
 #include <Ticker.h> // Include ticker for LVGL timing
 #include <Wire.h>
-#include <LittleFS.h>
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -41,49 +41,52 @@ char last_key = 0;
 // Filesystem variables
 bool fs_mounted = false;
 
+void meshCoreSetup();
+void meshCoreLoop();
+
 // Helper functions for Lua file loading
-String readFile(const char* filename) {
+String readFile(const char *filename) {
   if (!fs_mounted) {
     Serial.println("Filesystem not mounted!");
     return "";
   }
-  
+
   fs::File file = LittleFS.open(filename, "r");
   if (!file) {
     Serial.print("Failed to open file: ");
     Serial.println(filename);
     return "";
   }
-  
+
   String content = "";
   while (file.available()) {
     content += (char)file.read();
   }
   file.close();
-  
+
   return content;
 }
 
-bool loadLuaScript(lua_State *L, const char* filename) {
+bool loadLuaScript(lua_State *L, const char *filename) {
   String scriptPath = String(LUA_PATH) + filename;
   String script = readFile(scriptPath.c_str());
-  
+
   if (script.length() == 0) {
     Serial.print("Error loading Lua script: ");
     Serial.println(scriptPath);
     return false;
   }
-  
+
   Serial.print("Executing Lua script: ");
   Serial.println(scriptPath);
-  
+
   if (luaL_dostring(L, script.c_str()) != 0) {
     Serial.print("Lua error: ");
     Serial.println(lua_tostring(L, -1));
     lua_pop(L, 1);
     return false;
   }
-  
+
   return true;
 }
 
@@ -335,35 +338,36 @@ void setupLuaVGL() {
   // Initialize LuaVGL
   luaL_requiref(L, "lvgl", luaopen_lvgl, 1);
   lua_pop(L, 1);
-  
+
   // Add Lua loader for require function
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "searchers");
-  
+
   // Get the length of the searchers table
   int len = lua_rawlen(L, -1);
-  
+
   // Custom loader function for the filesystem
   lua_pushcfunction(L, [](lua_State *L) -> int {
     const char *modname = luaL_checkstring(L, 1);
     String filename = String(LUA_PATH) + modname + ".lua";
-    
+
     String content = readFile(filename.c_str());
     if (content.length() == 0) {
       lua_pushfstring(L, "\n\tno file '%s' in LittleFS", filename.c_str());
-      return 1;  // Return the error message
+      return 1; // Return the error message
     }
-    
-    if (luaL_loadbuffer(L, content.c_str(), content.length(), filename.c_str()) != 0) {
+
+    if (luaL_loadbuffer(L, content.c_str(), content.length(),
+                        filename.c_str()) != 0) {
       lua_error(L);
     }
-    
-    return 1;  // Return the loaded chunk
+
+    return 1; // Return the loaded chunk
   });
-  
+
   // Add our loader to the searchers table
   lua_rawseti(L, -2, len + 1);
-  lua_pop(L, 2);  // Pop package.searchers and package
+  lua_pop(L, 2); // Pop package.searchers and package
 
   // Setup print function to redirect to Serial
   luaL_dostring(L, R"(
@@ -379,14 +383,14 @@ void setupLuaVGL() {
   )");
 
   Serial.println("LuaVGL environment initialized");
-  
+
   // Load and run the main script
   if (fs_mounted) {
     if (loadLuaScript(L, "messenger.lua")) {
       Serial.println("Messenger app loaded successfully");
     } else {
       Serial.println("Failed to load messenger app, using fallback");
-      
+
       // Fallback to simple embedded script if the file isn't found
       const char *fallbackScript = R"(
         -- Fallback script when filesystem is not available
@@ -400,7 +404,7 @@ void setupLuaVGL() {
         
         return root
       )";
-      
+
       if (luaL_dostring(L, fallbackScript) != 0) {
         Serial.print("Fallback script error: ");
         Serial.println(lua_tostring(L, -1));
@@ -409,7 +413,7 @@ void setupLuaVGL() {
     }
   } else {
     Serial.println("Filesystem not mounted, can't load Lua scripts");
-    
+
     // Simple fallback UI when no filesystem
     const char *fallbackScript = R"(
       -- Fallback script when filesystem is not available
@@ -423,7 +427,7 @@ void setupLuaVGL() {
       
       return root
     )";
-    
+
     if (luaL_dostring(L, fallbackScript) != 0) {
       Serial.print("Fallback script error: ");
       Serial.println(lua_tostring(L, -1));
@@ -435,16 +439,16 @@ void setupLuaVGL() {
 void setup() {
   Serial.begin(115200);
   Serial.println("MeshPunk LuaVGL Demo");
-  
+
   // Initialize filesystem
   if (LittleFS.begin(true)) {
     fs_mounted = true;
     Serial.println("LittleFS mounted successfully");
-    
+
     // List root directory contents
     fs::File root = LittleFS.open("/");
     fs::File file = root.openNextFile();
-    
+
     Serial.println("LittleFS contents:");
     while (file) {
       Serial.print("  ");
@@ -523,6 +527,9 @@ void setup() {
   } else {
     Serial.println("T-Deck keyboard not found!");
   }
+
+  // Initialize meshcore
+  meshCoreSetup();
 
   // LVGL tick function
   lvgl_ticker.attach_ms(5, []() {

@@ -701,9 +701,9 @@ public:
 RADIO_CLASS radio =
     new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, SPI);
 #elif defined(LILYGO_TLORA)
-extern SPIClass spi;
+SPIClass meshSpi;
 RADIO_CLASS radio =
-    new Module(P_LORA_NSS, P_LORA_DIO_0, P_LORA_RESET, P_LORA_DIO_1, spi);
+    new Module(P_LORA_NSS, P_LORA_DIO_0, P_LORA_RESET, P_LORA_DIO_1, meshSpi);
 #elif defined(P_LORA_SCLK)
 SPIClass spi;
 RADIO_CLASS radio =
@@ -733,8 +733,10 @@ void halt() {
 static char command[80];
 
 void meshCoreSetup() {
-  Serial.begin(115200);
-  delay(1000);
+  // Serial.begin(115200);
+  // delay(1000);
+
+  Serial.println("Initializing board");
 
   board.begin();
 #ifdef ESP32
@@ -752,8 +754,13 @@ void meshCoreSetup() {
   SPI.setPins(P_LORA_MISO, P_LORA_SCLK, P_LORA_MOSI);
   SPI.begin();
 #elif defined(P_LORA_SCLK)
-  spi.begin(P_LORA_SCLK, P_LORA_MISO, P_LORA_MOSI);
+  meshSpi.begin(P_LORA_SCLK, P_LORA_MISO, P_LORA_MOSI);
 #endif
+
+  Serial.println("Initializing radio");
+
+  delay(5000);
+
   int status =
       radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR,
                   RADIOLIB_SX126X_SYNC_WORD_PRIVATE, LORA_TX_POWER, 8, tcxo);
@@ -777,6 +784,8 @@ void meshCoreSetup() {
 #endif
 
   fast_rng.begin(radio.random(0x7FFFFFFF));
+
+  Serial.println("Initializing filesystem");
 
   FILESYSTEM *fs;
 #if defined(NRF52_PLATFORM)
