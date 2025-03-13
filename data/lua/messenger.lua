@@ -1,5 +1,18 @@
 -- Main messenger application
 
+local messages = {
+    {
+        text = "Yo whats the best folk punk band",
+        sender = "0x1234567890",
+        timestamp = "12:00 PM"
+    },
+    {
+        text = "This bike is a pipe bomb",
+        sender = "0x9876543210",
+        timestamp = "12:01 PM"
+    }
+}
+
 -- Helper function to create buttons
 local function createBtn(parent, name)
     local root = parent:Button {
@@ -35,11 +48,50 @@ root:set {
     border_width = 0,
 }
 
-label = root:Label {
-    text = string.format("Messenger App"),
-    text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
-    align = lvgl.ALIGN.CENTER
-}        
+-- label = root:Label {
+--     text = string.format("Messenger App"),
+--     text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
+--     align = lvgl.ALIGN.CENTER
+-- }        
+
+local message_view = root:Object {
+    flex = {
+        flex_direction = "column",
+        flex_wrap = "nowrap",
+        align = lvgl.ALIGN.TOP_LEFT,
+    },
+    border_width = 0,
+    h = lvgl.PCT(100),
+    w = lvgl.PCT(100),
+    pad_all = 0
+}
+
+function update_message_list()
+    -- label:delete()
+    -- message_view:clear()
+
+    for _, message in ipairs(messages) do
+        local message_item = message_view:Object {
+            flex = {
+                flex_direction = "row",
+                justify = "space_between"
+            },
+            w = lvgl.PCT(100),
+            h = lvgl.SIZE_CONTENT,
+            border_width = 0,
+        }
+        message_item:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+        message_item:Label {
+            text = message.text,
+            h = lvgl.SIZE_CONTENT,
+            w = lvgl.PCT(100),
+
+        }   
+    end
+end
+
+update_message_list()
 
 local form = root:Object {
     flex = {
@@ -74,6 +126,14 @@ ta:onevent(lvgl.EVENT.KEY, function(obj, code)
     print(key)
 
     if key == lvgl.KEY.ENTER then
+        messages[#messages + 1] = {
+            text = ta.text,
+            sender = "0x1234567890",
+            timestamp = "12:00 PM"
+        }
+
+        update_message_list()
+
         ta.text = ""
     end
 end)
