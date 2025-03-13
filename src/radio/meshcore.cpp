@@ -77,7 +77,7 @@ static XiaoC3Board board;
 #include <helpers/ESP32Board.h>
 static ESP32Board board;
 #elif defined(LILYGO_TLORA)
-#include <helpers/CustomSX1276Wrapper.h>
+#include <helpers/CustomSX1262Wrapper.h>
 #include <helpers/LilyGoTLoraBoard.h>
 static LilyGoTLoraBoard board;
 #elif defined(STATION_G2)
@@ -749,6 +749,11 @@ void meshCoreSetup() {
 #else
   float tcxo = 1.6f;
 #endif
+
+  // Turn on the radio
+  Serial.println("Turning on radio");
+  pinMode(P_LORA_NSS, OUTPUT);
+  digitalWrite(P_LORA_NSS, HIGH);
 
 #if defined(NRF52_PLATFORM)
   SPI.setPins(P_LORA_MISO, P_LORA_SCLK, P_LORA_MOSI);
