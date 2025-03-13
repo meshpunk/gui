@@ -43,13 +43,16 @@ label = root:Label {
 
 local form = root:Object {
     flex = {
-        flex_direction = "row"
+        flex_direction = "row",
+        justify = "space_between"
     },
     border_width = 0,
     y = lvgl.VER_RES() - 55,
     w = lvgl.HOR_RES(),
     h = 40,
-    pad_all = 0, -- Add some padding for aesthetics
+    pad_bottom = 0,
+    pad_top = 0,
+    pad_left = 10,
 }
 
 form:clear_flag(lvgl.FLAG.SCROLLABLE)
@@ -58,10 +61,22 @@ local ta = form:Textarea {
     password_mode = false,
     one_line = true,
     placeholder = "Type a message...",
-    w = lvgl.PCT(69), -- 69% of parent width
+    w = lvgl.PCT(75),
     h = 40,
     align = lvgl.ALIGN.LEFT_MID,
 }
+
+ta:onevent(lvgl.EVENT.KEY, function(obj, code)
+    local indev = lvgl.indev.get_act()
+    local key = indev:get_key()
+
+    print("key pressed")
+    print(key)
+
+    if key == lvgl.KEY.ENTER then
+        ta.text = ""
+    end
+end)
 
 local btn = createBtn(form, "Send")
 
