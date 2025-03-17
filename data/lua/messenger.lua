@@ -66,28 +66,52 @@ local message_view = root:Object {
     pad_all = 0
 }
 
+local message_cache = {} -- Cache for message items
+
 function update_message_list()
-    -- label:delete()
-    -- message_view:clear()
-
-    for _, message in ipairs(messages) do
-        local message_item = message_view:Object {
-            flex = {
-                flex_direction = "row",
-                justify = "space_between"
-            },
-            w = lvgl.PCT(100),
-            h = lvgl.SIZE_CONTENT,
-            border_width = 0,
-        }
-        message_item:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-        message_item:Label {
-            text = message.text,
-            h = lvgl.SIZE_CONTENT,
-            w = lvgl.PCT(100),
-
-        }   
+    -- Ensure message_view exists
+    if not message_view then return end
+    
+    -- Get the number of messages
+    local message_count = #messages
+    local cache_count = #message_cache
+    
+    -- Update existing items or create new ones
+    for i = 1, message_count do
+        local message = messages[i]
+        
+        if not message_cache[i] then
+            -- Create a new message item if not in cache
+            message_cache[i] = message_view:Object {
+                flex = {
+                    flex_direction = "row",
+                    justify = "space_between"
+                },
+                w = lvgl.PCT(100),
+                h = 50,
+                border_width = 0,
+            }
+            message_cache[i]:clear_flag(lvgl.FLAG.SCROLLABLE)
+        end
+        
+        -- Update text
+        if not message_cache[i].label then
+            message_cache[i].label = message_cache[i]:Label {
+                text = message.text,
+                h = 50,
+                w = lvgl.PCT(100),
+            }
+        else
+            message_cache[i].label.text = message.text
+        end
+    end
+    
+    -- Remove excess items if the cache is larger than the messages
+    if cache_count > message_count then
+        for i = message_count + 1, cache_count do
+            message_view:remove_child(message_cache[i])
+            message_cache[i] = nil
+        end
     end
 end
 
