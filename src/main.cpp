@@ -1,16 +1,16 @@
 #include "TouchDrvGT911.hpp"
 #include "utilities.h"
 #include <Arduino.h>
+#include <HTTPClient.h>
 #include <LittleFS.h>
 #include <TFT_eSPI.h>
 #include <Ticker.h> // Include ticker for LVGL timing
 #include <WiFi.h>
 #include <Wire.h>
-#include <HTTPClient.h>
 
 // WiFi credentials
-const char *ssid = "YOUR_SSID_HERE";
-const char *password = "YOUR_PASSWORD_HERE";
+const char *ssid = "";
+const char *password = "";
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -330,12 +330,12 @@ void createUI() {
 static int lua_wifi_connect(lua_State *L) {
   const char *network = luaL_checkstring(L, 1);
   const char *pass = luaL_checkstring(L, 2);
-  
+
   Serial.print("Connecting to WiFi: ");
   Serial.println(network);
-  
+
   WiFi.begin(network, pass);
-  
+
   return 0;
 }
 
@@ -343,31 +343,31 @@ static int lua_wifi_connect(lua_State *L) {
 static int lua_wifi_status(lua_State *L) {
   wl_status_t status = WiFi.status();
   const char *status_str = "unknown";
-  
+
   switch (status) {
-    case WL_CONNECTED:
-      status_str = "connected";
-      break;
-    case WL_IDLE_STATUS:
-      status_str = "idle";
-      break;
-    case WL_DISCONNECTED:
-      status_str = "disconnected";
-      break;
-    case WL_CONNECT_FAILED:
-      status_str = "failed";
-      break;
-    case WL_CONNECTION_LOST:
-      status_str = "lost";
-      break;
-    case WL_NO_SSID_AVAIL:
-      status_str = "no_ssid";
-      break;
-    default:
-      status_str = "unknown";
-      break;
+  case WL_CONNECTED:
+    status_str = "connected";
+    break;
+  case WL_IDLE_STATUS:
+    status_str = "idle";
+    break;
+  case WL_DISCONNECTED:
+    status_str = "disconnected";
+    break;
+  case WL_CONNECT_FAILED:
+    status_str = "failed";
+    break;
+  case WL_CONNECTION_LOST:
+    status_str = "lost";
+    break;
+  case WL_NO_SSID_AVAIL:
+    status_str = "no_ssid";
+    break;
+  default:
+    status_str = "unknown";
+    break;
   }
-  
+
   lua_pushstring(L, status_str);
   if (status == WL_CONNECTED) {
     lua_pushstring(L, WiFi.localIP().toString().c_str());
@@ -376,7 +376,7 @@ static int lua_wifi_status(lua_State *L) {
     lua_pushstring(L, "");
     lua_pushstring(L, "");
   }
-  
+
   return 3; // Return status, IP, and SSID
 }
 
@@ -390,26 +390,26 @@ static int lua_wifi_disconnect(lua_State *L) {
 static int lua_wifi_fetch(lua_State *L) {
   const char *url = luaL_checkstring(L, 1);
   const char *method = luaL_optstring(L, 2, "GET");
-  
+
   // Parse headers if provided (table)
-  lua_newtable(L);  // Create result table
-  
+  lua_newtable(L); // Create result table
+
   if (WiFi.status() != WL_CONNECTED) {
-    lua_pushboolean(L, 0);  // success = false
+    lua_pushboolean(L, 0); // success = false
     lua_setfield(L, -2, "success");
-    
+
     lua_pushstring(L, "WiFi not connected");
     lua_setfield(L, -2, "error");
-    
+
     return 1;
   }
-  
+
   HTTPClient http;
   http.begin(url);
-  
+
   // Add headers if available (3rd parameter is a table)
   if (!lua_isnoneornil(L, 3) && lua_istable(L, 3)) {
-    lua_pushnil(L);  // First key
+    lua_pushnil(L); // First key
     while (lua_next(L, 3) != 0) {
       // Key at -2, value at -1
       if (lua_isstring(L, -2) && lua_isstring(L, -1)) {
@@ -417,13 +417,13 @@ static int lua_wifi_fetch(lua_State *L) {
         const char *headerValue = lua_tostring(L, -1);
         http.addHeader(headerName, headerValue);
       }
-      lua_pop(L, 1);  // Remove value, keep key for next iteration
+      lua_pop(L, 1); // Remove value, keep key for next iteration
     }
   }
-  
+
   int httpCode = 0;
   String payload = "";
-  
+
   if (strcmp(method, "GET") == 0) {
     httpCode = http.GET();
   } else if (strcmp(method, "POST") == 0) {
@@ -436,38 +436,38 @@ static int lua_wifi_fetch(lua_State *L) {
     httpCode = http.sendRequest("DELETE");
   } else {
     // Unknown method
-    lua_pushboolean(L, 0);  // success = false
+    lua_pushboolean(L, 0); // success = false
     lua_setfield(L, -2, "success");
-    
+
     lua_pushstring(L, "Unsupported HTTP method");
     lua_setfield(L, -2, "error");
-    
+
     http.end();
     return 1;
   }
-  
+
   if (httpCode > 0) {
     // HTTP header has been sent and server response header has been handled
     payload = http.getString();
-    
-    lua_pushboolean(L, 1);  // success = true
+
+    lua_pushboolean(L, 1); // success = true
     lua_setfield(L, -2, "success");
-    
+
     lua_pushinteger(L, httpCode);
     lua_setfield(L, -2, "status");
-    
+
     lua_pushstring(L, payload.c_str());
     lua_setfield(L, -2, "body");
   } else {
-    lua_pushboolean(L, 0);  // success = false
+    lua_pushboolean(L, 0); // success = false
     lua_setfield(L, -2, "success");
-    
+
     lua_pushstring(L, http.errorToString(httpCode).c_str());
     lua_setfield(L, -2, "error");
   }
-  
+
   http.end();
-  return 1;  // Return the result table
+  return 1; // Return the result table
 }
 
 // Initialize LuaVGL
@@ -485,7 +485,7 @@ void setupLuaVGL() {
   // Initialize LuaVGL
   luaL_requiref(L, "lvgl", luaopen_lvgl, 1);
   lua_pop(L, 1);
-  
+
   // Register WiFi functions
   lua_register(L, "_wifi_connect", lua_wifi_connect);
   lua_register(L, "_wifi_status", lua_wifi_status);
@@ -617,7 +617,7 @@ void setup() {
   } else {
     Serial.println("Error mounting LittleFS");
   }
-  
+
   // Initialize WiFi in station mode
   WiFi.mode(WIFI_STA);
   Serial.println("WiFi initialized in station mode");
