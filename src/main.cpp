@@ -1,10 +1,16 @@
 #include "TouchDrvGT911.hpp"
 #include "utilities.h"
 #include <Arduino.h>
+#include <LittleFS.h>
 #include <TFT_eSPI.h>
 #include <Ticker.h> // Include ticker for LVGL timing
+#include <WiFi.h>
 #include <Wire.h>
-#include <LittleFS.h>
+#include <HTTPClient.h>
+
+// WiFi credentials
+const char *ssid = "YOUR_SSID_HERE";
+const char *password = "YOUR_PASSWORD_HERE";
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -42,48 +48,48 @@ char last_key = 0;
 bool fs_mounted = false;
 
 // Helper functions for Lua file loading
-String readFile(const char* filename) {
+String readFile(const char *filename) {
   if (!fs_mounted) {
     Serial.println("Filesystem not mounted!");
     return "";
   }
-  
+
   fs::File file = LittleFS.open(filename, "r");
   if (!file) {
     Serial.print("Failed to open file: ");
     Serial.println(filename);
     return "";
   }
-  
+
   String content = "";
   while (file.available()) {
     content += (char)file.read();
   }
   file.close();
-  
+
   return content;
 }
 
-bool loadLuaScript(lua_State *L, const char* filename) {
+bool loadLuaScript(lua_State *L, const char *filename) {
   String scriptPath = String(LUA_PATH) + filename;
   String script = readFile(scriptPath.c_str());
-  
+
   if (script.length() == 0) {
     Serial.print("Error loading Lua script: ");
     Serial.println(scriptPath);
     return false;
   }
-  
+
   Serial.print("Executing Lua script: ");
   Serial.println(scriptPath);
-  
+
   if (luaL_dostring(L, script.c_str()) != 0) {
     Serial.print("Lua error: ");
     Serial.println(lua_tostring(L, -1));
     lua_pop(L, 1);
     return false;
   }
-  
+
   return true;
 }
 
@@ -320,6 +326,150 @@ void createUI() {
   // lv_obj_center(btn_label);
 }
 
+// WiFi function for Lua
+static int lua_wifi_connect(lua_State *L) {
+  const char *network = luaL_checkstring(L, 1);
+  const char *pass = luaL_checkstring(L, 2);
+  
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(network);
+  
+  WiFi.begin(network, pass);
+  
+  return 0;
+}
+
+// WiFi status function for Lua
+static int lua_wifi_status(lua_State *L) {
+  wl_status_t status = WiFi.status();
+  const char *status_str = "unknown";
+  
+  switch (status) {
+    case WL_CONNECTED:
+      status_str = "connected";
+      break;
+    case WL_IDLE_STATUS:
+      status_str = "idle";
+      break;
+    case WL_DISCONNECTED:
+      status_str = "disconnected";
+      break;
+    case WL_CONNECT_FAILED:
+      status_str = "failed";
+      break;
+    case WL_CONNECTION_LOST:
+      status_str = "lost";
+      break;
+    case WL_NO_SSID_AVAIL:
+      status_str = "no_ssid";
+      break;
+    default:
+      status_str = "unknown";
+      break;
+  }
+  
+  lua_pushstring(L, status_str);
+  if (status == WL_CONNECTED) {
+    lua_pushstring(L, WiFi.localIP().toString().c_str());
+    lua_pushstring(L, WiFi.SSID().c_str());
+  } else {
+    lua_pushstring(L, "");
+    lua_pushstring(L, "");
+  }
+  
+  return 3; // Return status, IP, and SSID
+}
+
+// WiFi disconnect function for Lua
+static int lua_wifi_disconnect(lua_State *L) {
+  WiFi.disconnect();
+  return 0;
+}
+
+// HTTP fetch function for Lua
+static int lua_wifi_fetch(lua_State *L) {
+  const char *url = luaL_checkstring(L, 1);
+  const char *method = luaL_optstring(L, 2, "GET");
+  
+  // Parse headers if provided (table)
+  lua_newtable(L);  // Create result table
+  
+  if (WiFi.status() != WL_CONNECTED) {
+    lua_pushboolean(L, 0);  // success = false
+    lua_setfield(L, -2, "success");
+    
+    lua_pushstring(L, "WiFi not connected");
+    lua_setfield(L, -2, "error");
+    
+    return 1;
+  }
+  
+  HTTPClient http;
+  http.begin(url);
+  
+  // Add headers if available (3rd parameter is a table)
+  if (!lua_isnoneornil(L, 3) && lua_istable(L, 3)) {
+    lua_pushnil(L);  // First key
+    while (lua_next(L, 3) != 0) {
+      // Key at -2, value at -1
+      if (lua_isstring(L, -2) && lua_isstring(L, -1)) {
+        const char *headerName = lua_tostring(L, -2);
+        const char *headerValue = lua_tostring(L, -1);
+        http.addHeader(headerName, headerValue);
+      }
+      lua_pop(L, 1);  // Remove value, keep key for next iteration
+    }
+  }
+  
+  int httpCode = 0;
+  String payload = "";
+  
+  if (strcmp(method, "GET") == 0) {
+    httpCode = http.GET();
+  } else if (strcmp(method, "POST") == 0) {
+    const char *body = luaL_optstring(L, 4, "");
+    httpCode = http.POST(body);
+  } else if (strcmp(method, "PUT") == 0) {
+    const char *body = luaL_optstring(L, 4, "");
+    httpCode = http.PUT(body);
+  } else if (strcmp(method, "DELETE") == 0) {
+    httpCode = http.sendRequest("DELETE");
+  } else {
+    // Unknown method
+    lua_pushboolean(L, 0);  // success = false
+    lua_setfield(L, -2, "success");
+    
+    lua_pushstring(L, "Unsupported HTTP method");
+    lua_setfield(L, -2, "error");
+    
+    http.end();
+    return 1;
+  }
+  
+  if (httpCode > 0) {
+    // HTTP header has been sent and server response header has been handled
+    payload = http.getString();
+    
+    lua_pushboolean(L, 1);  // success = true
+    lua_setfield(L, -2, "success");
+    
+    lua_pushinteger(L, httpCode);
+    lua_setfield(L, -2, "status");
+    
+    lua_pushstring(L, payload.c_str());
+    lua_setfield(L, -2, "body");
+  } else {
+    lua_pushboolean(L, 0);  // success = false
+    lua_setfield(L, -2, "success");
+    
+    lua_pushstring(L, http.errorToString(httpCode).c_str());
+    lua_setfield(L, -2, "error");
+  }
+  
+  http.end();
+  return 1;  // Return the result table
+}
+
 // Initialize LuaVGL
 void setupLuaVGL() {
   // Create Lua state
@@ -336,34 +486,41 @@ void setupLuaVGL() {
   luaL_requiref(L, "lvgl", luaopen_lvgl, 1);
   lua_pop(L, 1);
   
+  // Register WiFi functions
+  lua_register(L, "_wifi_connect", lua_wifi_connect);
+  lua_register(L, "_wifi_status", lua_wifi_status);
+  lua_register(L, "_wifi_disconnect", lua_wifi_disconnect);
+  lua_register(L, "_wifi_fetch", lua_wifi_fetch);
+
   // Add Lua loader for require function
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "searchers");
-  
+
   // Get the length of the searchers table
   int len = lua_rawlen(L, -1);
-  
+
   // Custom loader function for the filesystem
   lua_pushcfunction(L, [](lua_State *L) -> int {
     const char *modname = luaL_checkstring(L, 1);
     String filename = String(LUA_PATH) + modname + ".lua";
-    
+
     String content = readFile(filename.c_str());
     if (content.length() == 0) {
       lua_pushfstring(L, "\n\tno file '%s' in LittleFS", filename.c_str());
-      return 1;  // Return the error message
+      return 1; // Return the error message
     }
-    
-    if (luaL_loadbuffer(L, content.c_str(), content.length(), filename.c_str()) != 0) {
+
+    if (luaL_loadbuffer(L, content.c_str(), content.length(),
+                        filename.c_str()) != 0) {
       lua_error(L);
     }
-    
-    return 1;  // Return the loaded chunk
+
+    return 1; // Return the loaded chunk
   });
-  
+
   // Add our loader to the searchers table
   lua_rawseti(L, -2, len + 1);
-  lua_pop(L, 2);  // Pop package.searchers and package
+  lua_pop(L, 2); // Pop package.searchers and package
 
   // Setup print function to redirect to Serial
   luaL_dostring(L, R"(
@@ -379,14 +536,17 @@ void setupLuaVGL() {
   )");
 
   Serial.println("LuaVGL environment initialized");
-  
+
   // Load and run the main script
   if (fs_mounted) {
-    if (loadLuaScript(L, "messenger.lua")) {
+    // Try to load the fetch example app first
+    if (loadLuaScript(L, "fetch_example.lua")) {
+      Serial.println("WiFi Fetch example app loaded successfully");
+    } else if (loadLuaScript(L, "messenger.lua")) {
       Serial.println("Messenger app loaded successfully");
     } else {
-      Serial.println("Failed to load messenger app, using fallback");
-      
+      Serial.println("Failed to load apps, using fallback");
+
       // Fallback to simple embedded script if the file isn't found
       const char *fallbackScript = R"(
         -- Fallback script when filesystem is not available
@@ -400,7 +560,7 @@ void setupLuaVGL() {
         
         return root
       )";
-      
+
       if (luaL_dostring(L, fallbackScript) != 0) {
         Serial.print("Fallback script error: ");
         Serial.println(lua_tostring(L, -1));
@@ -409,7 +569,7 @@ void setupLuaVGL() {
     }
   } else {
     Serial.println("Filesystem not mounted, can't load Lua scripts");
-    
+
     // Simple fallback UI when no filesystem
     const char *fallbackScript = R"(
       -- Fallback script when filesystem is not available
@@ -423,7 +583,7 @@ void setupLuaVGL() {
       
       return root
     )";
-    
+
     if (luaL_dostring(L, fallbackScript) != 0) {
       Serial.print("Fallback script error: ");
       Serial.println(lua_tostring(L, -1));
@@ -435,16 +595,16 @@ void setupLuaVGL() {
 void setup() {
   Serial.begin(115200);
   Serial.println("MeshPunk LuaVGL Demo");
-  
+
   // Initialize filesystem
   if (LittleFS.begin(true)) {
     fs_mounted = true;
     Serial.println("LittleFS mounted successfully");
-    
+
     // List root directory contents
     fs::File root = LittleFS.open("/");
     fs::File file = root.openNextFile();
-    
+
     Serial.println("LittleFS contents:");
     while (file) {
       Serial.print("  ");
@@ -457,6 +617,10 @@ void setup() {
   } else {
     Serial.println("Error mounting LittleFS");
   }
+  
+  // Initialize WiFi in station mode
+  WiFi.mode(WIFI_STA);
+  Serial.println("WiFi initialized in station mode");
 
   // The board peripheral power control pin needs to be set to HIGH when using
   // the peripheral
