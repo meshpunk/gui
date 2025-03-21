@@ -71,8 +71,7 @@ local results_container = root:Object {
 local results_label = results_container:Label {
     text = "Results will appear here...",
     w = lvgl.PCT(100),
-    h = lvgl.PCT(100),
-    long_mode = lvgl.LABEL_LONG.WRAP,
+    h = lvgl.PCT(100)
 }
 
 -- Coroutines for async operations

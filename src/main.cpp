@@ -9,8 +9,6 @@
 #include <Wire.h>
 
 // WiFi credentials
-const char *ssid = "";
-const char *password = "";
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -542,8 +540,8 @@ void setupLuaVGL() {
     // Try to load the fetch example app first
     if (loadLuaScript(L, "fetch_example.lua")) {
       Serial.println("WiFi Fetch example app loaded successfully");
-    } else if (loadLuaScript(L, "messenger.lua")) {
-      Serial.println("Messenger app loaded successfully");
+      // } else if (loadLuaScript(L, "messenger.lua")) {
+      //   Serial.println("Messenger app loaded successfully");
     } else {
       Serial.println("Failed to load apps, using fallback");
 
@@ -554,7 +552,7 @@ void setupLuaVGL() {
         root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
         
         root:Label {
-          text = "Filesystem Error\nMake sure to upload data files",
+          text = "Error in Lua code",
           align = lvgl.ALIGN.CENTER
         }
         
