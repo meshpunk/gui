@@ -362,5 +362,257 @@ end, lvgl.EVENT.VALUE_CHANGED)
 ```
 
 ### LED
+```lua
+local led = parent:Led {
+    align = lvgl.ALIGN.CENTER
+}
 
+-- Set brightness (0-255)
+led:set_brightness(150)
+led:toggle()
 ```
+
+## Styling
+
+### Creating Styles
+
+```lua
+local style = lvgl.Style()
+style:set {
+    bg_color = "#FF0000",
+    border_width = 2,
+    border_color = "#000000",
+    pad_all = 10,
+    text_color = "#FFFFFF",
+    radius = 10
+}
+```
+
+### Applying Styles
+
+```lua
+-- Apply to an object
+obj:add_style(style, lvgl.STATE.DEFAULT)
+
+-- Apply to a specific part
+button:add_style(style, lvgl.STATE.DEFAULT, lvgl.PART.MAIN)
+```
+
+## Layouts
+
+### Flex Layout
+
+```lua
+container:set {
+    flex = {
+        flex_direction = "row", -- "row", "column", "row_wrap", "column_wrap"
+        flex_wrap = "wrap",     -- "nowrap", "wrap", "wrap_reverse"
+        justify_content = "center", -- "start", "end", "center", "space_between", "space_around", "space_evenly"
+        align_items = "center", -- "start", "end", "center", "stretch" 
+        align_content = "center" -- "start", "end", "center", "stretch", "space_between", "space_around"
+    },
+    w = 300,
+    h = 200
+}
+
+-- Set flex grow value for a child
+child:set_flex_grow(1)
+```
+
+### Grid Layout
+
+```lua
+container:set {
+    grid = {
+        column_dsc = "100px 1fr 100px",
+        row_dsc = "50px 1fr 50px",
+    }
+}
+
+-- Place child in grid
+child:set_grid_cell(1, 1, 1, 1) -- col, row, col_span, row_span
+```
+
+## Animations
+
+```lua
+-- Create animation
+obj:Anim {
+    run = true,             -- Start immediately
+    start_value = 0,        -- Start value
+    end_value = 100,        -- End value
+    duration = 1000,        -- Duration in ms
+    delay = 0,              -- Delay before start
+    repeat_count = 0,       -- 0 for infinite
+    repeat_delay = 0,       -- Delay between repeats
+    early_apply = false,    -- Apply first value immediately
+    path = "linear",        -- "linear", "ease_in", "ease_out", "ease_in_out", "bounce"
+    exec_cb = function(obj, value)
+        obj:set_x(value)    -- Animation callback
+    end,
+    ready_cb = function()   -- Called when animation completes
+        print("Animation done")
+    end
+}
+```
+
+## Fonts
+
+```lua
+-- Using built-in fonts
+local builtin_font = lvgl.BUILTIN_FONT.MONTSERRAT_24
+
+-- Using custom fonts (requires font extension to be set up)
+local custom_font = lvgl.Font("montserrat", 24, "normal")
+-- Parameters: name, size, weight ("normal", "medium", "bold")
+
+-- Apply font to an object
+label:set {
+    text_font = custom_font
+}
+```
+
+## Events & Callbacks
+
+```lua
+-- Add event callback
+obj:add_event(function(e)
+    -- Event data is available in the event object
+    local code = e:get_code()
+    local target = e:get_target()
+    
+    if code == lvgl.EVENT.CLICKED then
+        print("Object clicked")
+    end
+end, lvgl.EVENT.CLICKED)
+
+-- Add multiple event codes
+obj:add_event(function(e)
+    local code = e:get_code()
+    if code == lvgl.EVENT.PRESSED then
+        print("Pressed")
+    elseif code == lvgl.EVENT.RELEASED then
+        print("Released")
+    end
+end, lvgl.EVENT.PRESSED, lvgl.EVENT.RELEASED)
+
+-- Remove event
+obj:remove_event(event_ref)
+```
+
+## Input Devices
+
+```lua
+-- Get indev (requires LVGL to be properly initialized)
+local indev = lvgl.get_indev()
+
+-- Set cursor
+indev:set_cursor(cursor_obj)
+
+-- Set group
+indev:set_group(group)
+```
+
+## Custom Widgets
+
+You can extend LUAVGL with custom widgets by implementing them in C and registering them with the Lua environment. See the documentation in the source code for details.
+
+```c
+// In C code
+static const luaL_Reg my_widget_methods[] = {
+    {"MyWidget", my_widget_create},
+    {NULL, NULL},
+};
+
+void register_my_widget(lua_State *L) {
+    // Register methods
+    lua_pushstring(L, "MyWidget");
+    lua_pushcfunction(L, my_widget_create);
+    lua_rawset(L, -3);
+}
+```
+
+## Example Projects
+
+### Simple Button Example
+
+```lua
+local root = lvgl.Object()
+root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+
+local button = root:Button {
+    text = "Click Me!",
+    w = 150,
+    h = 50,
+    align = lvgl.ALIGN.CENTER
+}
+
+local counter = 0
+button:add_event(function(e)
+    counter = counter + 1
+    button:set {
+        text = "Clicks: " .. counter
+    }
+end, lvgl.EVENT.CLICKED)
+```
+
+### Flex Layout Example
+
+```lua
+local root = lvgl.Object()
+root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+
+-- Create a flex container
+local container = root:Object {
+    w = 300,
+    h = 200,
+    align = lvgl.ALIGN.CENTER,
+    flex = {
+        flex_direction = "row",
+        flex_wrap = "wrap",
+        justify_content = "space_evenly",
+        align_items = "center"
+    }
+}
+
+-- Add items to the flex container
+for i = 1, 5 do
+    local item = container:Object {
+        w = 80,
+        h = 50,
+        bg_color = i % 2 == 0 and "#3366FF" or "#FF6633"
+    }
+    
+    item:Label {
+        text = "Item " .. i,
+        align = lvgl.ALIGN.CENTER
+    }
+end
+```
+
+### Animated Image Example
+
+```lua
+local root = lvgl.Object()
+root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+
+local img = root:Image {
+    src = "logo.png",
+    align = lvgl.ALIGN.CENTER
+}
+
+-- Create a rotation animation
+img:Anim {
+    run = true,
+    start_value = 0,
+    end_value = 3600,
+    duration = 10000,
+    repeat_count = 0, -- infinite
+    path = "linear",
+    exec_cb = function(obj, value)
+        obj:set { angle = value }
+    end
+}
+```
+
+For more examples, check the LUAVGL repository and the provided simulator code. 
