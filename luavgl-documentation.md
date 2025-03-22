@@ -182,87 +182,578 @@ obj:set {
 Common methods for all objects:
 
 ```lua
--- Add event callback
-obj:add_event(callback, event_code)
+-- Property setting
+obj:set { property = value }  -- Set multiple properties
+obj:get("property")          -- Get a property value
 
--- Add/remove flags
-obj:add_flag(lvgl.FLAG.CLICKABLE)
-obj:clear_flag(lvgl.FLAG.SCROLLABLE)
+-- Event handling
+obj:add_event(callback, event_code)  -- Add event callback
+obj:onevent(callback, event_code)    -- Alternative event handler
+obj:onPressed(callback)              -- Handle pressed event
+obj:onClicked(callback)              -- Handle clicked event
+obj:onShortClicked(callback)         -- Handle short click event
 
--- Add/remove states
-obj:add_state(lvgl.STATE.CHECKED)
-obj:clear_state(lvgl.STATE.DISABLED)
+-- Object hierarchy
+obj:set_parent(parent)       -- Set object's parent
+obj:get_parent()            -- Get object's parent
+obj:get_screen()            -- Get object's screen
+obj:get_child(index)        -- Get child by index
+obj:get_child_cnt()         -- Get number of children
+obj:get_child_by_id(id)     -- Get child by ID
+obj:delete()                -- Delete object and its children
+obj:clean()                 -- Remove all children but keep object
 
--- Check if object has specific state
-local has_state = obj:has_state(lvgl.STATE.PRESSED)
+-- State and flags
+obj:add_flag(lvgl.FLAG.CLICKABLE)     -- Add flag
+obj:clear_flag(lvgl.FLAG.SCROLLABLE)  -- Clear flag
+obj:add_state(lvgl.STATE.CHECKED)     -- Add state
+obj:clear_state(lvgl.STATE.DISABLED)  -- Clear state
+obj:get_state()                       -- Get current state
+obj:is_visible()                      -- Check if object is visible
+obj:is_editable()                     -- Check if object is editable
+obj:is_group_def()                    -- Check if object is group defocusable
+obj:is_layout_positioned()            -- Check if object is positioned by layout
 
--- Property setters and getters
-obj:set_x(10)
-obj:set_y(20)
-local x = obj:get_x()
-local y = obj:get_y()
+-- Styling
+obj:add_style(style, state)           -- Add style
+obj:remove_style(style)               -- Remove style
+obj:remove_style_all()                -- Remove all styles
 
--- Delete object and its children
-obj:delete()  -- deletes this object and all its children
+-- Layout
+obj:set_flex_flow(flow)               -- Set flex flow
+obj:set_flex_align(align)             -- Set flex alignment
+obj:set_flex_grow(grow)               -- Set flex grow
+obj:mark_layout_as_dirty()            -- Mark layout for recalculation
+obj:center()                          -- Center object in parent
 
--- Remove all children but keep the object
-obj:clean()   -- removes all child objects but keeps the parent
+-- Position and size
+obj:align_to({               -- Align relative to another object
+    base = other_obj,
+    type = lvgl.ALIGN.CENTER,
+    x_ofs = 0,
+    y_ofs = 0
+})
+obj:get_coords()            -- Get coordinates {x1,y1,x2,y2}
+obj:get_pos()              -- Get position {x1,y1,x2,y2}
+
+-- Scrolling
+obj:scroll_to({ x = 0, y = 0, anim = true })  -- Scroll to position
+obj:scroll_by(x, y, anim_en)                  -- Scroll by offset
+obj:scroll_by_bounded(dx, dy, anim_en)        -- Scroll with bounds
+obj:scroll_to_view(anim_en)                   -- Scroll object into view
+obj:scroll_to_view_recursive(anim_en)         -- Scroll into view recursively
+obj:is_scrolling()                            -- Check if object is scrolling
+obj:scrollbar_invalidate()                    -- Invalidate scrollbars
+obj:readjust_scroll(anim_en)                 -- Readjust scroll position
+
+-- Animation
+obj:Anim({                  -- Create animation
+    start_value = 0,
+    end_value = 100,
+    duration = 1000,
+    exec_cb = function(obj, value) end
+})
+obj:remove_all_anim()       -- Remove all animations
+
+-- Input handling
+obj:indev_search()          -- Search for input device
+
+-- Drawing
+obj:invalidate()            -- Force redraw
+```
+
+### States and Flags
+
+LVGL objects can have different states and flags that control their behavior and appearance.
+
+#### States
+
+States represent the current condition of an object. Multiple states can be active at once.
+
+```lua
+-- Available states (lvgl.STATE.*)
+local states = {
+    DEFAULT = 0,            -- Default state
+    CHECKED = 1,           -- Object is checked/selected
+    FOCUSED = 2,           -- Object is focused (e.g. via keyboard)
+    FOCUS_KEY = 4,         -- Object is focused via keyboard
+    EDITED = 8,            -- Object is being edited
+    HOVERED = 16,          -- Mouse cursor is over the object
+    PRESSED = 32,          -- Object is being pressed
+    SCROLLED = 64,         -- Object is being scrolled
+    DISABLED = 128,        -- Object is disabled/inactive
+    USER_1 = 256,          -- Custom state 1
+    USER_2 = 512,          -- Custom state 2
+    USER_3 = 1024,         -- Custom state 3
+    USER_4 = 2048          -- Custom state 4
+}
+
+-- Managing states
+obj:add_state(lvgl.STATE.CHECKED)      -- Add a state
+obj:clear_state(lvgl.STATE.DISABLED)   -- Remove a state
+local state = obj:get_state()          -- Get current state
+
+-- Example: Style based on state
+local style = lvgl.Style()
+style:set {
+    bg_color = "#FF0000"  -- Red background when checked
+}
+obj:add_style(style, lvgl.STATE.CHECKED)
+```
+
+##### Understanding USER States
+
+LVGL provides four custom states (USER_1 through USER_4) that integrate with LVGL's state-based styling system. These are different from adding custom fields to objects and offer several advantages:
+
+Key Benefits:
+1. **Style Integration**: USER states work directly with LVGL's styling system
+2. **Performance**: State changes trigger LVGL's optimized style system
+3. **Consistency**: Works with LVGL's built-in state handling
+4. **Transitions**: Can use LVGL's style transitions between states
+5. **Combinations**: Can be combined with other states using bitwise operations
+6. **Event Integration**: State changes trigger LVGL events automatically
+
+Example using USER states for styling:
+```lua
+-- Create styles for different states
+local style_active = lvgl.Style()
+style_active:set {
+    bg_color = "#FF0000",
+    border_width = 2
+}
+
+local style_inactive = lvgl.Style()
+style_inactive:set {
+    bg_color = "#888888",
+    border_width = 0
+}
+
+-- Apply styles based on USER_1 state
+obj:add_style(style_active, lvgl.STATE.USER_1)
+obj:add_style(style_inactive, ~lvgl.STATE.USER_1)
+
+-- Switch between states
+obj:add_state(lvgl.STATE.USER_1)    -- Activates the active style
+obj:clear_state(lvgl.STATE.USER_1)  -- Activates the inactive style
+```
+
+Combining with built-in states:
+```lua
+-- Style applies when both conditions are true
+obj:add_style(style1, lvgl.STATE.USER_1 | lvgl.STATE.PRESSED)
+obj:add_style(style2, lvgl.STATE.USER_2 | lvgl.STATE.DISABLED)
+```
+
+Common Use Cases:
+
+1. Custom Tab States:
+```lua
+local TAB_STATES = {
+    NORMAL = lvgl.STATE.DEFAULT,
+    SELECTED = lvgl.STATE.USER_1,
+    HIGHLIGHTED = lvgl.STATE.USER_2
+}
+
+tab:add_style(normal_style, TAB_STATES.NORMAL)
+tab:add_style(selected_style, TAB_STATES.SELECTED)
+tab:add_style(highlight_style, TAB_STATES.HIGHLIGHTED)
+```
+
+2. Game States:
+```lua
+local GAME_STATES = {
+    PLAYING = lvgl.STATE.USER_1,
+    PAUSED = lvgl.STATE.USER_2,
+    GAME_OVER = lvgl.STATE.USER_3
+}
+
+game_ui:add_style(playing_style, GAME_STATES.PLAYING)
+game_ui:add_style(paused_style, GAME_STATES.PAUSED)
+game_ui:add_style(game_over_style, GAME_STATES.GAME_OVER)
+```
+
+When to Use USER States vs Custom Fields:
+
+Use USER states when:
+- You need style changes based on the state
+- You want to combine with other LVGL states
+- You need transition animations between states
+- You want to trigger state-change events
+
+Use custom fields when:
+- You need to store data not related to appearance
+- You need more than 4 custom states
+- You need to store non-boolean values
+- The state doesn't affect the object's appearance
+
+Example combining both approaches:
+```lua
+-- Game object that needs both visual states and data
+local game_object = parent:Object()
+
+-- Visual states using USER states
+local VISUAL_STATES = {
+    NORMAL = lvgl.STATE.DEFAULT,
+    HIGHLIGHTED = lvgl.STATE.USER_1,
+    SELECTED = lvgl.STATE.USER_2
+}
+
+-- Data using custom fields
+game_object.score = 0
+game_object.player_name = "Player 1"
+game_object.position = { x = 0, y = 0 }
+
+-- Using both together
+game_object:add_event(function(e)
+    if e.target:get_state() & VISUAL_STATES.SELECTED then
+        -- Update score when selected
+        game_object.score = game_object.score + 1
+        -- Update appearance based on score
+        if game_object.score > 10 then
+            game_object:add_state(VISUAL_STATES.HIGHLIGHTED)
+        end
+    end
+end, lvgl.EVENT.VALUE_CHANGED)
+```
+
+#### Flags
+
+Flags control various object behaviors. Unlike states, flags are either on or off.
+
+```lua
+-- Available flags (lvgl.FLAG.*)
+local flags = {
+    HIDDEN = 1,            -- Object is hidden
+    CLICKABLE = 2,         -- Object can receive click/touch events
+    CLICK_FOCUSABLE = 4,   -- Object can be focused by clicking
+    CHECKABLE = 8,         -- Object can be checked/unchecked
+    SCROLLABLE = 16,       -- Object can be scrolled
+    SCROLL_ELASTIC = 32,   -- Scroll is elastic
+    SCROLL_MOMENTUM = 64,  -- Scroll has momentum
+    SCROLL_ONE = 128,      -- Only one child can be scrolled at a time
+    SCROLL_CHAIN = 256,    -- Scroll can be propagated to parent
+    SCROLL_ON_FOCUS = 512, -- Object scrolls into view when focused
+    SNAPPABLE = 1024,      -- Object snaps to grid
+    PRESS_LOCK = 2048,     -- Press events are locked to this object
+    EVENT_BUBBLE = 4096,   -- Events bubble to parent
+    GESTURE_BUBBLE = 8192, -- Gestures bubble to parent
+    ADV_HITTEST = 16384,   -- Advanced hit-testing
+    IGNORE_LAYOUT = 32768, -- Object ignores layout rules
+    FLOATING = 65536,      -- Object is floating (ignores layout)
+    OVERFLOW_VISIBLE = 131072  -- Children can be visible outside parent
+}
+
+-- Managing flags
+obj:add_flag(lvgl.FLAG.CLICKABLE)      -- Add a flag
+obj:clear_flag(lvgl.FLAG.SCROLLABLE)   -- Remove a flag
+
+-- Example: Common flag combinations
+obj:add_flag(lvgl.FLAG.CLICKABLE + lvgl.FLAG.CHECKABLE)  -- Make object clickable and checkable
+
+-- Example: Make object interactive
+obj:add_flag(
+    lvgl.FLAG.CLICKABLE +
+    lvgl.FLAG.CLICK_FOCUSABLE +
+    lvgl.FLAG.SCROLLABLE +
+    lvgl.FLAG.SCROLL_MOMENTUM
+)
+```
+
+Common use cases:
+1. Making an object interactive:
+```lua
+obj:add_flag(lvgl.FLAG.CLICKABLE + lvgl.FLAG.CLICK_FOCUSABLE)
+```
+
+2. Setting up a scrollable container:
+```lua
+container:add_flag(
+    lvgl.FLAG.SCROLLABLE +
+    lvgl.FLAG.SCROLL_MOMENTUM +
+    lvgl.FLAG.SCROLL_ELASTIC
+)
+```
+
+3. Creating a checkable button:
+```lua
+button:add_flag(lvgl.FLAG.CLICKABLE + lvgl.FLAG.CHECKABLE)
+button:add_event(function(e)
+    if button:get_state() & lvgl.STATE.CHECKED then
+        print("Button is checked")
+    end
+end, lvgl.EVENT.VALUE_CHANGED)
+```
+
+4. Making an object float above layout:
+```lua
+overlay:add_flag(lvgl.FLAG.FLOATING + lvgl.FLAG.IGNORE_LAYOUT)
+```
+
+5. Setting up event propagation:
+```lua
+parent:add_flag(lvgl.FLAG.EVENT_BUBBLE + lvgl.FLAG.GESTURE_BUBBLE)
 ```
 
 ## Widgets
 
 ### Button
 
+The Button widget is a simple clickable object that inherits all functionality from the base object. It's commonly used for user interactions.
+
 ```lua
-local button = parent:Button()
-button:set {
+-- Create a basic button
+local button = parent:Button {
+    w = 100,                    -- Width
+    h = 40,                     -- Height
+    align = lvgl.ALIGN.CENTER   -- Alignment
+}
+
+-- Add a label to the button
+button:Label {
     text = "Click me",
-    w = 100,
-    h = 50,
     align = lvgl.ALIGN.CENTER
 }
 
+-- Make it interactive
+button:add_flag(lvgl.FLAG.CLICKABLE)
+
+-- Handle clicks
 button:add_event(function(e)
     print("Button clicked!")
 end, lvgl.EVENT.CLICKED)
+
+-- Example: Create a styled button
+local style = lvgl.Style()
+style:set {
+    bg_color = "#2196F3",      -- Blue background
+    bg_opa = 255,              -- Full opacity
+    border_width = 0,          -- No border
+    radius = 8,                -- Rounded corners
+    pad_all = 10,              -- Padding
+    text_color = "#FFFFFF",    -- White text
+    text_font = lvgl.BUILTIN_FONT.MONTSERRAT_14  -- Font
+}
+
+local styled_button = parent:Button {
+    w = 120,
+    h = 40,
+    align = lvgl.ALIGN.CENTER
+}
+styled_button:add_style(style, lvgl.STATE.DEFAULT)
+
+-- Add hover effect
+local style_pressed = lvgl.Style()
+style_pressed:set {
+    bg_color = "#1976D2"  -- Darker blue when pressed
+}
+styled_button:add_style(style_pressed, lvgl.STATE.PRESSED)
+
+-- Add label
+styled_button:Label {
+    text = "Styled Button",
+    align = lvgl.ALIGN.CENTER
+}
 ```
+
+Key features:
+- Simple clickable container
+- Can contain other widgets (commonly used with Label)
+- Supports all base object properties and methods
+- Can be styled for different states (default, pressed, disabled, etc.)
+- Automatically handles press/release animations when styled
+
+Common use cases:
+1. Basic click actions
+2. Toggle buttons (using `CHECKABLE` flag)
+3. Navigation controls
+4. Form submissions
+5. Menu items
 
 ### Label
 
+The Label widget displays text with extensive formatting options. It's one of the most fundamental widgets in LUAVGL.
+
 ```lua
+-- Create a basic label
 local label = parent:Label {
     text = "Hello LVGL",
-    align = lvgl.ALIGN.CENTER,
-    text_font = lvgl.Font("montserrat", 24, "normal"),
-    -- Or use built-in font:
-    -- text_font = lvgl.BUILTIN_FONT.MONTSERRAT_24
-}
-
--- Update label text
-label:set_text("Updated text")
-```
-
-### Image
-
-```lua
-local img = parent:Image {
-    src = "path/to/image.png",
     align = lvgl.ALIGN.CENTER
 }
 
--- Create animation for image
-img:Anim {
+-- Set text properties
+label:set {
+    text = "New text",                                    -- Change text content
+    text_font = lvgl.BUILTIN_FONT.MONTSERRAT_14,         -- Set font
+    text_color = "#FFFFFF",                              -- Text color
+    text_align = lvgl.TEXT_ALIGN.CENTER,                 -- Text alignment within label
+    text_line_space = 2,                                 -- Space between lines
+    text_letter_space = 1                                -- Space between letters
+}
+
+-- Handle long text with different modes
+label:set {
+    w = 100,                                             -- Constrain width
+    long_mode = lvgl.LABEL_LONG.WRAP,                    -- Wrap text to new lines
+    -- Other long_mode options:
+    -- lvgl.LABEL_LONG.DOT              -- Add ... at the end
+    -- lvgl.LABEL_LONG.SCROLL           -- Scroll text horizontally
+    -- lvgl.LABEL_LONG.SCROLL_CIRCULAR  -- Scroll continuously
+    -- lvgl.LABEL_LONG.CLIP             -- Simply clip the text
+}
+
+-- Text manipulation methods
+label:ins_text(0, "Prefix: ")                           -- Insert text at position
+label:cut_text(0, 5)                                    -- Remove 5 characters from position 0
+
+-- Get text content
+local text = label:get_text()                           -- Get current text
+
+-- Text selection (if enabled)
+label:set {
+    text_selection_start = 0,                           -- Start of selection
+    text_selection_end = 5                              -- End of selection
+}
+
+-- Example: Create a styled label with animation
+local style = lvgl.Style()
+style:set {
+    text_font = lvgl.BUILTIN_FONT.MONTSERRAT_20,
+    text_color = "#2196F3",
+    text_line_space = 5,
+    text_letter_space = 2,
+    pad_all = 10,
+    bg_color = "#000000",
+    bg_opa = 50,
+    radius = 8
+}
+
+local animated_label = parent:Label {
+    text = "Animated Text",
+    align = lvgl.ALIGN.CENTER,
+    w = 200
+}
+animated_label:add_style(style, lvgl.STATE.DEFAULT)
+
+-- Add scrolling animation for long text
+animated_label:set {
+    long_mode = lvgl.LABEL_LONG.SCROLL_CIRCULAR,
+    text = "This is a long text that will scroll continuously in a circular manner"
+}
+```
+
+Key features:
+- Text display with rich formatting options
+- Multiple fonts support (built-in and custom)
+- Text alignment (left, right, center)
+- Line and letter spacing
+- Long text handling modes (wrap, dot, scroll, clip)
+- Text selection support
+- Text manipulation (insert, cut)
+- Automatic size calculation
+- Scrolling animations for long text
+
+Long text handling modes:
+1. `WRAP` - Text wraps to next line when it reaches the width limit
+2. `DOT` - Adds "..." at the end when text is too long
+3. `SCROLL` - Scrolls text horizontally when it's too long
+4. `SCROLL_CIRCULAR` - Continuously scrolls text in a circular manner
+5. `CLIP` - Simply clips the text at the width limit
+
+Common use cases:
+1. Display static text (titles, descriptions)
+2. Show dynamic content (values, status messages)
+3. Create scrolling announcements
+4. Build menu items
+5. Show tooltips
+6. Display error messages
+7. Create text-based animations
+
+### Image
+
+The Image widget displays images in various formats supported by LVGL. It supports basic image manipulation like rotation, scaling, and positioning.
+
+```lua
+-- Create a basic image
+local img = parent:Image {
+    src = "path/to/image.png",    -- Image source path
+    align = lvgl.ALIGN.CENTER     -- Alignment within parent
+}
+
+-- Set image properties
+img:set {
+    w = 200,                      -- Width (optional, defaults to content width)
+    h = 150,                      -- Height (optional, defaults to content height)
+    zoom = 256,                   -- Zoom level (256 = 100%)
+    angle = 450,                  -- Rotation angle in tenths of a degree (450 = 45°)
+    antialias = true,            -- Enable antialiasing for rotated images
+    pivot = { x = 100, y = 75 }  -- Rotation center point
+}
+
+-- Set image offset (for partial display or animation)
+img:set_offset {
+    x = 10,                       -- X offset from original position
+    y = 20                        -- Y offset from original position
+}
+
+-- Change image source
+img:set_src("new_image.png")
+
+-- Get image dimensions
+local w, h = img:get_img_size()   -- Get current image size
+local w, h = img:get_img_size("other_image.png")  -- Get size of another image
+
+-- Example: Create an animated image with rotation
+local style = lvgl.Style()
+style:set {
+    img_recolor = "#2196F3",      -- Recolor the image with blue
+    img_recolor_opa = 128,        -- 50% recolor opacity
+    img_opa = 255                 -- Full image opacity
+}
+
+local animated_img = parent:Image {
+    src = "icon.png",
+    align = lvgl.ALIGN.CENTER,
+    w = 100,
+    h = 100
+}
+animated_img:add_style(style, lvgl.STATE.DEFAULT)
+
+-- Add rotation animation
+animated_img:Anim {
     run = true,
     start_value = 0,
-    end_value = 3600,
-    duration = 2000,
-    repeat_count = 2,
-    path = "bounce",
+    end_value = 3600,            -- Full 360° rotation (in tenths of degrees)
+    duration = 3000,             -- 3 seconds
+    repeat_count = 0,            -- Infinite repetition
+    path = "linear",             -- Linear animation path
     exec_cb = function(obj, value)
         obj:set { angle = value }
     end
 }
 ```
+
+Key features:
+- Support for multiple image formats (PNG, JPG, BMP, etc., depending on LVGL configuration)
+- Image rotation with custom pivot point
+- Image offset control
+- Image size querying
+- Zoom control
+- Antialiasing for rotated images
+- Style properties for recoloring and opacity
+- Animation support
+
+Image source types:
+1. File paths (e.g., "path/to/image.png")
+2. Symbols from font (e.g., lvgl.SYMBOL.OK)
+3. Variables containing image data
+4. Online images (if LVGL is configured with network support)
+
+Style properties specific to images:
+- `img_opa`: Image opacity
+- `img_recolor`: Color to blend with the image
+- `img_recolor_opa`: Intensity of recoloring
+- `transform_zoom`: Image zoom
+- `transform_angle`: Rotation angle
 
 ### Checkbox
 
@@ -334,17 +825,31 @@ list:add_btn(nil, "Item 3")
 
 ### Roller
 
+**WARNING**: Roller is broken, crashes
+
 ```lua
 local roller = parent:Roller {
-    options = "Option 1\nOption 2\nOption 3\nOption 4\nOption 5",
-    visible_row_count = 3,
-    align = lvgl.ALIGN.CENTER
+    options = "Option 1\nOption 2\nOption 3\nOption 4\nOption 5",  -- Options separated by newlines
+    visible_row_count = 3,  -- Number of visible rows
+    selected = 0  -- Index of initially selected option (0-based)
 }
 
+-- Get the selected option's text
+local selected_text = roller:get_selected_str()
+
+-- Get total number of options
+local option_count = roller:get_options_cnt()
+
+-- Change selection programmatically
+roller:set { selected = 2 }  -- Select the third option (0-based index)
+
+-- Handle selection changes
 roller:add_event(function(e)
-    print("Selected:", roller:get_selected())
+    print("Selected:", roller:get_selected())  -- Get selected index
+    print("Selected text:", roller:get_selected_str())  -- Get selected text
 end, lvgl.EVENT.VALUE_CHANGED)
 ```
+
 
 ### Textarea
 
@@ -362,14 +867,21 @@ end, lvgl.EVENT.VALUE_CHANGED)
 ```
 
 ### LED
+
 ```lua
-local led = parent:Led {
-    align = lvgl.ALIGN.CENTER
+-- Create an LED
+local led = parent:Led()
+
+-- Set its properties
+led:set {
+    color = "#FF0000",      -- Red color
+    brightness = 150        -- Medium brightness
 }
 
--- Set brightness (0-255)
-led:set_brightness(150)
-led:toggle()
+-- Control methods
+led:on()                    -- Turn on (full brightness)
+led:off()                   -- Turn off (minimum brightness)
+led:toggle()                -- Toggle between on/off states
 ```
 
 ## Styling
