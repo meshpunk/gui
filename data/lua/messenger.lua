@@ -69,6 +69,11 @@ local message_view = root:Object {
 function update_message_list()
     -- label:delete()
     -- message_view:clear()
+    -- for i, message in ipairs(message_view.children) do
+    --     message_view[i] = nil
+    -- end
+
+    -- print(#message_view)
 
     for _, message in ipairs(messages) do
         local message_item = message_view:Object {
