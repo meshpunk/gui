@@ -34,25 +34,15 @@ local function createBtn(parent, name)
     return root
 end
 
--- Create a simple hello world label
+-- Create root object with visible background
 local root = lvgl.Object()
-root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
-root:clear_flag(lvgl.FLAG.SCROLLABLE)
-
--- flex layout and align
-root:set {
-    w = lvgl.HOR_RES(),
+root:set { 
+    w = lvgl.HOR_RES(), 
     h = lvgl.VER_RES(),
-    align = lvgl.ALIGN.TOP_LEFT,
-    pad_all = 0,
     border_width = 0,
+    pad_all = 0
 }
-
--- label = root:Label {
---     text = string.format("Messenger App"),
---     text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
---     align = lvgl.ALIGN.CENTER
--- }        
+root:clear_flag(lvgl.FLAG.SCROLLABLE)
 
 local message_view = root:Object {
     flex = {
@@ -63,7 +53,7 @@ local message_view = root:Object {
     border_width = 0,
     h = lvgl.PCT(100),
     w = lvgl.PCT(100),
-    pad_all = 0
+    pad_all = 0,
 }
 
 function update_message_list()
@@ -85,7 +75,6 @@ function update_message_list()
             text = message.text,
             h = lvgl.SIZE_CONTENT,
             w = lvgl.PCT(100),
-
         }   
     end
 end
@@ -139,35 +128,4 @@ end)
 
 local btn = createBtn(form, "Send")
 
-
--- Display animation
-if false then
-    -- Animation example with playback
-    local obj = root:Object {
-        bg_color = "#F00000",
-        radius = lvgl.RADIUS_CIRCLE,
-        size = 24,
-        x = 280,
-        y = 200
-    }
-    obj:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-    -- Animation parameters
-    local animPara = {
-        run = true,
-        start_value = 16,
-        end_value = 32,
-        duration = 1000,
-        repeat_count = lvgl.ANIM_REPEAT_INFINITE,
-        path = "ease_in_out",
-    }
-
-    animPara.exec_cb = function(obj, value)
-        obj:set { size = value }
-    end
-
-    obj:Anim(animPara)
-
-    -- Return the root object
-    return root
-end
+return root
