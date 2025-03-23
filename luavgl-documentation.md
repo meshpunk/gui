@@ -12,6 +12,7 @@ LUAVGL (Lua + LVGL) is a Lua binding for the Light and Versatile Graphics Librar
     - [Object Hierarchy](#object-hierarchy)
     - [Property Setting](#property-setting)
     - [Events](#events)
+    - [Units and Measurements](#units-and-measurements)
 4. [LVGL Objects](#lvgl-objects)
     - [Creating Objects](#creating-objects)
     - [Basic Object Properties](#basic-object-properties)
@@ -30,7 +31,12 @@ LUAVGL (Lua + LVGL) is a Lua binding for the Light and Versatile Graphics Librar
     - [LED](#led)
 6. [Styling](#styling)
     - [Creating Styles](#creating-styles)
+    - [Style Properties](#style-properties)
     - [Applying Styles](#applying-styles)
+    - [Style Inheritance](#style-inheritance)
+    - [Style Combinations](#style-combinations)
+    - [Removing Styles](#removing-styles)
+    - [Example: Complex Styling](#example-complex-styling)
 7. [Layouts](#layouts)
     - [Flex Layout](#flex-layout)
     - [Grid Layout](#grid-layout)
@@ -142,6 +148,128 @@ Events are handled with Lua callbacks:
 button:add_event(function(e)
     print("Button clicked!")
 end, lvgl.EVENT.CLICKED)
+```
+
+## Units and Measurements
+
+LUAVGL uses a consistent system for handling units and measurements across all widgets and layouts. Here's a detailed breakdown:
+
+### Basic Units
+- All position and size values are handled as pixels through `lv_coord_t` (an integer type)
+- Width, height, x, and y coordinates are all specified in pixels
+- Example:
+```lua
+obj:set({
+    x = 100,        -- 100 pixels from left
+    y = 50,         -- 50 pixels from top
+    width = 200,    -- 200 pixels wide
+    height = 150    -- 150 pixels tall
+})
+```
+
+### Coordinate Limits
+LUAVGL provides special constants for defining the boundaries of the coordinate system:
+- `lvgl.COORD_MAX`: Maximum possible coordinate value for dimensions and positions
+- `lvgl.COORD_MIN`: Minimum possible coordinate value for dimensions and positions
+
+These constants are useful for:
+- Setting objects to their maximum/minimum possible size
+- Defining boundaries for scrolling or positioning
+- Working with layout calculations
+
+Example:
+```lua
+-- Make an object span the full available width
+obj:set {
+    width = lvgl.COORD_MAX,
+    height = 100  -- Fixed height of 100 pixels
+}
+
+-- Create a minimal-sized object
+obj:set {
+    width = lvgl.COORD_MIN,
+    height = lvgl.COORD_MIN
+}
+```
+
+### Percentage Values
+- Use `PCT()` function to specify dimensions as percentages of the parent container
+- Internally implemented as `luavgl_LV_PCT()` which uses the LVGL macro `LV_PCT()`
+- Example:
+```lua
+obj:set({
+    width = lvgl.PCT(50),   -- 50% of parent width
+    height = lvgl.PCT(100)  -- 100% of parent height
+})
+```
+
+### Special Size Values
+LUAVGL provides special constants for flexible sizing:
+- `SIZE_CONTENT`: Size the object to fit its content
+- `COORD_MAX`: Maximum possible coordinate value
+- `COORD_MIN`: Minimum possible coordinate value
+
+Example:
+```lua
+obj:set({
+    width = lvgl.SIZE_CONTENT,  -- Fit to content width
+    height = lvgl.SIZE_CONTENT  -- Fit to content height
+})
+```
+
+### Position and Alignment
+- Basic positioning uses pixel coordinates from top-left
+- Alignment can be specified using predefined constants or tables with offsets
+- Simple alignment:
+```lua
+obj:set({
+    align = lvgl.ALIGN.CENTER  -- Center in parent
+})
+```
+- Complex alignment with offset:
+```lua
+obj:set({
+    align = {
+        type = lvgl.ALIGN.CENTER,
+        x_ofs = 10,  -- 10 pixels right offset
+        y_ofs = -5   -- 5 pixels up offset
+    }
+})
+```
+
+Available alignment constants:
+- `lvgl.ALIGN.DEFAULT`
+- `lvgl.ALIGN.TOP_LEFT`
+- `lvgl.ALIGN.TOP_MID`
+- `lvgl.ALIGN.TOP_RIGHT`
+- `lvgl.ALIGN.BOTTOM_LEFT`
+- `lvgl.ALIGN.BOTTOM_MID`
+- `lvgl.ALIGN.BOTTOM_RIGHT`
+- `lvgl.ALIGN.LEFT_MID`
+- `lvgl.ALIGN.RIGHT_MID`
+- `lvgl.ALIGN.CENTER`
+- `lvgl.ALIGN.OUT_TOP_LEFT`
+- `lvgl.ALIGN.OUT_TOP_MID`
+- `lvgl.ALIGN.OUT_TOP_RIGHT`
+- `lvgl.ALIGN.OUT_BOTTOM_LEFT`
+- `lvgl.ALIGN.OUT_BOTTOM_MID`
+- `lvgl.ALIGN.OUT_BOTTOM_RIGHT`
+- `lvgl.ALIGN.OUT_LEFT_TOP`
+- `lvgl.ALIGN.OUT_LEFT_MID`
+- `lvgl.ALIGN.OUT_LEFT_BOTTOM`
+- `lvgl.ALIGN.OUT_RIGHT_TOP`
+- `lvgl.ALIGN.OUT_RIGHT_MID`
+- `lvgl.ALIGN.OUT_RIGHT_BOTTOM`
+
+### Screen Resolution
+Functions to get screen dimensions for responsive design:
+- `lvgl.HOR_RES()`: Get screen width in pixels
+- `lvgl.VER_RES()`: Get screen height in pixels
+
+Example:
+```lua
+local screen_width = lvgl.HOR_RES()
+local screen_height = lvgl.VER_RES()
 ```
 
 ## LVGL Objects
@@ -757,27 +885,68 @@ Style properties specific to images:
 
 ### Checkbox
 
+The Checkbox widget is a clickable object that can be checked/unchecked and displays text next to a checkbox indicator.
+
 ```lua
+-- Create a basic checkbox
 local cb = parent:Checkbox {
-    text = "Option",
-    align = lvgl.ALIGN.CENTER
+    text = "Option",              -- Text label for the checkbox
+    align = lvgl.ALIGN.CENTER,    -- Alignment within parent
+    checked = true                -- Initial checked state (optional)
 }
 
+-- Set checkbox properties
+cb:set {
+    text = "New text",            -- Change the checkbox text
+}
+
+-- Get checkbox text
+local text = cb:get_text()
+
+-- Handle state changes
 cb:add_event(function(e)
-    print("Checkbox state:", cb:is_checked())
+    local state = e.target:get_state()
+    local is_checked = (state & lvgl.STATE.CHECKED) ~= 0
+    print("Checkbox state:", is_checked)
 end, lvgl.EVENT.VALUE_CHANGED)
+
+-- Make it interactive (already enabled by default for checkboxes)
+cb:add_flag(lvgl.FLAG.CLICKABLE + lvgl.FLAG.CHECKABLE)
+
+-- Check programmatically
+cb:add_state(lvgl.STATE.CHECKED)   -- Check the checkbox
+cb:clear_state(lvgl.STATE.CHECKED) -- Uncheck the checkbox
+
+-- Check if checkbox is checked
+local is_checked = (cb:get_state() & lvgl.STATE.CHECKED) ~= 0
 ```
 
 ### Dropdown
 
+The Dropdown widget creates a list of options that can be selected from a dropdown menu.
+
 ```lua
+-- Create a basic dropdown
 local dd = parent:Dropdown {
-    options = "Option 1\nOption 2\nOption 3",
-    align = lvgl.ALIGN.CENTER
+    options = "Option 1\nOption 2\nOption 3",  -- Options separated by newlines
+    align = lvgl.ALIGN.CENTER,                 -- Alignment within parent
 }
 
+-- Control methods
+dd:open()                                      -- Open the dropdown list
+dd:close()                                     -- Close the dropdown list
+
+-- Add/remove options
+dd:add_option("New Option", lvgl.DROPDOWN_POS_LAST)  -- Add option at position (use DROPDOWN_POS_LAST for end)
+dd:clear_option()                                    -- Remove all options
+
+-- Get information
+local index = dd:option_index("Option 1")      -- Get index of option by text
+local selected_text = dd:get("selected_str")   -- Get currently selected option text
+
+-- Handle selection changes
 dd:add_event(function(e)
-    print("Selected:", dd:get_selected())
+    print("Selected:", dd:get("selected_str"))
 end, lvgl.EVENT.VALUE_CHANGED)
 ```
 
@@ -810,17 +979,55 @@ kb:set_textarea(textarea)
 
 ### List
 
+The List widget is a container that helps create scrollable lists with text items and buttons. It's commonly used for creating menus, option lists, and other vertically arranged content.
+
 ```lua
+-- Create a basic list
 local list = parent:List {
-    align = lvgl.ALIGN.CENTER,
-    w = 200,
-    h = 200
+    w = 200,                    -- Width
+    h = 300,                    -- Height
+    align = lvgl.ALIGN.CENTER   -- Alignment
 }
 
--- Add buttons to the list
-list:add_btn("icon.png", "Item 1")
-list:add_btn(nil, "Item 2")
-list:add_btn(nil, "Item 3")
+-- Add text header
+list:add_text("Categories")
+
+-- Add buttons with icons
+list:add_btn(lvgl.SYMBOL.HOME, "Home")
+list:add_btn(lvgl.SYMBOL.FILE, "Documents")
+list:add_btn(lvgl.SYMBOL.IMAGE, "Pictures")
+
+-- Handle button clicks
+list:add_event(function(e)
+    if e:get_code() == lvgl.EVENT.CLICKED then
+        local btn = e:get_target()
+        local text = list:get_btn_text(btn)
+        print("Clicked:", text)
+    end
+end, lvgl.EVENT.CLICKED)
+
+-- Example: Create a styled list
+local style_list = lvgl.Style()
+style_list:set {
+    bg_color = "#ffffff",      -- White background
+    border_width = 1,          -- Add border
+    border_color = "#888888",  -- Gray border
+    pad_all = 4,              -- Inner padding
+    radius = 8                -- Rounded corners
+}
+
+local style_btn = lvgl.Style()
+style_btn:set {
+    bg_color = "#eeeeee",     -- Light gray background
+    bg_color_pressed = "#cccccc",  -- Darker when pressed
+    pad_all = 10,             -- Button padding
+    radius = 4,               -- Slightly rounded corners
+    text_color = "#000000"    -- Black text
+}
+
+-- Apply styles
+list:add_style(style_list, lvgl.STATE.DEFAULT)
+list:add_style(style_btn, lvgl.STATE.DEFAULT, lvgl.PART.ITEMS)
 ```
 
 ### Roller
@@ -888,27 +1095,241 @@ led:toggle()                -- Toggle between on/off states
 
 ### Creating Styles
 
+Styles in LUAVGL are created using the `Style` constructor and can be applied to any object. A style can contain multiple properties that affect the appearance and behavior of an object.
+
 ```lua
 local style = lvgl.Style()
 style:set {
-    bg_color = "#FF0000",
-    border_width = 2,
-    border_color = "#000000",
-    pad_all = 10,
-    text_color = "#FFFFFF",
-    radius = 10
+    -- style properties here
 }
 ```
 
+### Style Properties
+
+LUAVGL provides a comprehensive set of style properties organized into the following categories:
+
+#### Size and Position
+- `width`: Width of the object
+- `min_width`: Minimum width
+- `max_width`: Maximum width
+- `height`: Height of the object
+- `min_height`: Minimum height
+- `max_height`: Maximum height
+- `x`: X position
+- `y`: Y position
+- `align`: Alignment type
+
+#### Transform Properties
+- `transform_width`: Width transformation
+- `transform_height`: Height transformation
+- `translate_x`: X translation
+- `translate_y`: Y translation
+- `transform_scale_x`: X scale transformation
+- `transform_scale_y`: Y scale transformation
+- `transform_rotation`: Rotation transformation
+- `transform_pivot_x`: X pivot point for transformations
+- `transform_pivot_y`: Y pivot point for transformations
+
+#### Padding
+- `pad_top`: Top padding
+- `pad_bottom`: Bottom padding
+- `pad_left`: Left padding
+- `pad_right`: Right padding
+- `pad_row`: Row padding
+- `pad_column`: Column padding
+- `pad_gap`: Gap padding
+- `pad_all`: Sets all padding values (shorthand)
+- `pad_ver`: Sets vertical padding (shorthand)
+- `pad_hor`: Sets horizontal padding (shorthand)
+
+#### Background
+- `bg_color`: Background color
+- `bg_opa`: Background opacity
+- `bg_grad_color`: Gradient end color
+- `bg_grad_dir`: Gradient direction
+- `bg_main_stop`: Position of the main color in gradient
+- `bg_grad_stop`: Position of the gradient end color
+- `bg_image_src`: Background image source
+- `bg_image_opa`: Background image opacity
+- `bg_image_recolor`: Background image recolor
+- `bg_image_recolor_opa`: Background image recolor opacity
+- `bg_image_tiled`: Whether the background image is tiled
+
+#### Border
+- `border_color`: Border color
+- `border_opa`: Border opacity
+- `border_width`: Border width
+- `border_side`: Which sides have borders
+- `border_post`: Whether to draw border after content
+
+#### Outline
+- `outline_width`: Outline width
+- `outline_color`: Outline color
+- `outline_opa`: Outline opacity
+- `outline_pad`: Space between object and outline
+
+#### Shadow
+- `shadow_width`: Shadow width
+- `shadow_offset_x`: Shadow X offset
+- `shadow_offset_y`: Shadow Y offset
+- `shadow_spread`: Shadow spread
+- `shadow_color`: Shadow color
+- `shadow_opa`: Shadow opacity
+
+#### Image
+- `image_opa`: Image opacity
+- `image_recolor`: Image recolor
+- `image_recolor_opa`: Image recolor opacity
+
+#### Line
+- `line_width`: Line width
+- `line_dash_width`: Width of dash
+- `line_dash_gap`: Gap between dashes
+- `line_rounded`: Whether line ends are rounded
+- `line_color`: Line color
+- `line_opa`: Line opacity
+
+#### Arc
+- `arc_width`: Arc width
+- `arc_rounded`: Whether arc ends are rounded
+- `arc_color`: Arc color
+- `arc_opa`: Arc opacity
+- `arc_image_src`: Image source for arc background
+
+#### Text
+- `text_color`: Text color
+- `text_opa`: Text opacity
+- `text_font`: Text font
+- `text_letter_space`: Space between letters
+- `text_line_space`: Space between lines
+- `text_decor`: Text decoration
+- `text_align`: Text alignment
+
+#### Miscellaneous
+- `radius`: Corner radius
+- `clip_corner`: Whether to clip the corners
+- `opa`: Overall opacity
+- `color_filter_opa`: Color filter opacity
+- `anim_time`: Animation time
+- `blend_mode`: Blend mode
+- `layout`: Layout type
+- `base_dir`: Base direction for text
+
 ### Applying Styles
 
-```lua
--- Apply to an object
-obj:add_style(style, lvgl.STATE.DEFAULT)
+Styles can be applied to objects in several ways:
 
--- Apply to a specific part
-button:add_style(style, lvgl.STATE.DEFAULT, lvgl.PART.MAIN)
+1. Direct style application:
+```lua
+obj:add_style(style, lvgl.STATE.DEFAULT)
 ```
+
+2. Inline styling:
+```lua
+obj:set_style({
+    bg_color = "#FF0000",
+    border_width = 2
+}, lvgl.STATE.DEFAULT)
+```
+
+3. State-specific styling:
+```lua
+-- Style for pressed state
+obj:add_style(pressed_style, lvgl.STATE.PRESSED)
+
+-- Style for disabled state
+obj:add_style(disabled_style, lvgl.STATE.DISABLED)
+```
+
+### Style Inheritance
+
+LUAVGL supports style inheritance using the special value "inherit":
+```lua
+obj:set_style({
+    text_font = "inherit",
+    text_color = "inherit"
+}, lvgl.STATE.DEFAULT)
+```
+
+### Style Combinations
+
+Some style properties can be set using shorthand combinations:
+
+```lua
+style:set {
+    -- Set both width and height
+    size = 100,
+    
+    -- Set all paddings at once
+    pad_all = 10,
+    
+    -- Set vertical padding (top and bottom)
+    pad_ver = 20,
+    
+    -- Set horizontal padding (left and right)
+    pad_hor = 15
+}
+```
+
+### Removing Styles
+
+Styles can be removed from objects:
+```lua
+-- Remove a specific style
+obj:remove_style(style)
+
+-- Remove all styles
+obj:remove_style_all()
+
+-- Remove a specific property from a style
+style:remove_prop("width")
+```
+
+### Example: Complex Styling
+
+```lua
+local style = lvgl.Style()
+style:set {
+    -- Size and position
+    width = 200,
+    height = 100,
+    
+    -- Background
+    bg_color = "#2196F3",
+    bg_opa = 255,
+    bg_grad_color = "#1976D2",
+    bg_grad_dir = lvgl.GRAD_DIR.HOR,
+    
+    -- Border
+    border_width = 2,
+    border_color = "#000000",
+    border_opa = 128,
+    
+    -- Shadow
+    shadow_width = 10,
+    shadow_color = "#000000",
+    shadow_opa = 64,
+    shadow_offset_x = 5,
+    shadow_offset_y = 5,
+    
+    -- Text
+    text_color = "#FFFFFF",
+    text_font = lvgl.BUILTIN_FONT.MONTSERRAT_14,
+    text_letter_space = 1,
+    text_line_space = 2,
+    
+    -- Padding
+    pad_all = 10,
+    
+    -- Radius
+    radius = 8
+}
+
+-- Apply the style to an object
+obj:add_style(style, lvgl.STATE.DEFAULT)
+```
+
+This style creates a blue gradient button with a border, shadow, and specific text formatting.
 
 ## Layouts
 
