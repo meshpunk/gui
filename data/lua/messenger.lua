@@ -34,25 +34,15 @@ local function createBtn(parent, name)
     return root
 end
 
--- Create a simple hello world label
+-- Create root object with visible background
 local root = lvgl.Object()
-root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
-root:clear_flag(lvgl.FLAG.SCROLLABLE)
-
--- flex layout and align
-root:set {
-    w = lvgl.HOR_RES(),
+root:set { 
+    w = lvgl.HOR_RES(), 
     h = lvgl.VER_RES(),
-    align = lvgl.ALIGN.TOP_LEFT,
-    pad_all = 0,
     border_width = 0,
+    pad_all = 0
 }
-
--- label = root:Label {
---     text = string.format("Messenger App"),
---     text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
---     align = lvgl.ALIGN.CENTER
--- }        
+root:clear_flag(lvgl.FLAG.SCROLLABLE)
 
 local message_view = root:Object {
     flex = {
@@ -63,55 +53,29 @@ local message_view = root:Object {
     border_width = 0,
     h = lvgl.PCT(100),
     w = lvgl.PCT(100),
-    pad_all = 0
+    pad_all = 0,
 }
 
-local message_cache = {} -- Cache for message items
-
 function update_message_list()
-    -- Ensure message_view exists
-    if not message_view then return end
-    
-    -- Get the number of messages
-    local message_count = #messages
-    local cache_count = #message_cache
-    
-    -- Update existing items or create new ones
-    for i = 1, message_count do
-        local message = messages[i]
-        
-        if not message_cache[i] then
-            -- Create a new message item if not in cache
-            message_cache[i] = message_view:Object {
-                flex = {
-                    flex_direction = "row",
-                    justify = "space_between"
-                },
-                w = lvgl.PCT(100),
-                h = 50,
-                border_width = 0,
-            }
-            message_cache[i]:clear_flag(lvgl.FLAG.SCROLLABLE)
-        end
-        
-        -- Update text
-        if not message_cache[i].label then
-            message_cache[i].label = message_cache[i]:Label {
-                text = message.text,
-                h = 50,
-                w = lvgl.PCT(100),
-            }
-        else
-            message_cache[i].label.text = message.text
-        end
-    end
-    
-    -- Remove excess items if the cache is larger than the messages
-    if cache_count > message_count then
-        for i = message_count + 1, cache_count do
-            message_view:remove_child(message_cache[i])
-            message_cache[i] = nil
-        end
+    message_view:clean()
+
+    for _, message in ipairs(messages) do
+        local message_item = message_view:Object {
+            flex = {
+                flex_direction = "row",
+                justify = "space_between"
+            },
+            w = lvgl.PCT(100),
+            h = lvgl.SIZE_CONTENT,
+            border_width = 0,
+        }
+        message_item:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+        message_item:Label {
+            text = message.text,
+            h = lvgl.SIZE_CONTENT,
+            w = lvgl.PCT(100),
+        }   
     end
 end
 
@@ -164,35 +128,4 @@ end)
 
 local btn = createBtn(form, "Send")
 
-
--- Display animation
-if false then
-    -- Animation example with playback
-    local obj = root:Object {
-        bg_color = "#F00000",
-        radius = lvgl.RADIUS_CIRCLE,
-        size = 24,
-        x = 280,
-        y = 200
-    }
-    obj:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-    -- Animation parameters
-    local animPara = {
-        run = true,
-        start_value = 16,
-        end_value = 32,
-        duration = 1000,
-        repeat_count = lvgl.ANIM_REPEAT_INFINITE,
-        path = "ease_in_out",
-    }
-
-    animPara.exec_cb = function(obj, value)
-        obj:set { size = value }
-    end
-
-    obj:Anim(animPara)
-
-    -- Return the root object
-    return root
-end
+return root
