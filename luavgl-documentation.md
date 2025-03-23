@@ -1335,36 +1335,251 @@ This style creates a blue gradient button with a border, shadow, and specific te
 
 ### Flex Layout
 
-```lua
-container:set {
-    flex = {
-        flex_direction = "row", -- "row", "column", "row_wrap", "column_wrap"
-        flex_wrap = "wrap",     -- "nowrap", "wrap", "wrap_reverse"
-        justify_content = "center", -- "start", "end", "center", "space_between", "space_around", "space_evenly"
-        align_items = "center", -- "start", "end", "center", "stretch" 
-        align_content = "center" -- "start", "end", "center", "stretch", "space_between", "space_around"
-    },
-    w = 300,
-    h = 200
-}
+The flex layout provides a powerful and flexible way to arrange child objects. It is based on the CSS Flexbox model.
 
--- Set flex grow value for a child
-child:set_flex_grow(1)
+#### Enabling Flex Layout
+
+To use flex layout, set the layout property to `LAYOUT_FLEX`:
+
+```lua
+container:set({
+    layout = lvgl.LAYOUT_FLEX
+})
 ```
 
+#### Flex Direction and Wrapping
+
+Set the flex flow using `flex_flow` property or `set_flex_flow()` method. Available options:
+
+- `lvgl.FLEX_FLOW.ROW`: Items arranged in a row (left to right)
+- `lvgl.FLEX_FLOW.COLUMN`: Items arranged in a column (top to bottom)
+- `lvgl.FLEX_FLOW.ROW_WRAP`: Items in rows, wrapping to next row when needed
+- `lvgl.FLEX_FLOW.ROW_REVERSE`: Items in row from right to left
+- `lvgl.FLEX_FLOW.ROW_WRAP_REVERSE`: Wrapped rows in reverse order
+- `lvgl.FLEX_FLOW.COLUMN_WRAP`: Items in columns, wrapping to next column
+- `lvgl.FLEX_FLOW.COLUMN_REVERSE`: Items in column from bottom to top
+- `lvgl.FLEX_FLOW.COLUMN_WRAP_REVERSE`: Wrapped columns in reverse order
+
+Example:
+```lua
+-- Using property
+container:set({
+    flex = {
+        flex_direction = "row",
+        flex_wrap = "wrap"
+    }
+})
+
+-- Or using method
+container:set_flex_flow(lvgl.FLEX_FLOW.ROW_WRAP)
+```
+
+#### Alignment
+
+Flex layout supports three types of alignment:
+
+1. **Main Axis Alignment** (`justify_content`):
+   - `START`: Items at start of main axis
+   - `END`: Items at end of main axis
+   - `CENTER`: Items centered on main axis
+   - `SPACE_BETWEEN`: Equal space between items
+   - `SPACE_AROUND`: Equal space around items
+   - `SPACE_EVENLY`: Equal space between and around items
+
+2. **Cross Axis Alignment** (`align_items`):
+   - `START`: Items at start of cross axis
+   - `END`: Items at end of cross axis
+   - `CENTER`: Items centered on cross axis
+   - `SPACE_BETWEEN`: Equal space between items
+   - `SPACE_AROUND`: Equal space around items
+   - `SPACE_EVENLY`: Equal space between and around items
+
+3. **Multi-line Alignment** (`align_content`):
+   - Same options as above, but for multiple lines/columns
+
+Example:
+```lua
+-- Using properties
+container:set({
+    flex = {
+        justify_content = "space-between",
+        align_items = "center",
+        align_content = "space-around"
+    }
+})
+
+-- Or using method
+container:set_flex_align(
+    lvgl.FLEX_ALIGN.SPACE_BETWEEN,  -- main axis
+    lvgl.FLEX_ALIGN.CENTER,         -- cross axis
+    lvgl.FLEX_ALIGN.SPACE_AROUND    -- track (multi-line)
+)
+```
+
+#### Flex Grow
+
+Control how items grow to fill available space using `flex_grow`:
+
+```lua
+-- Make an item grow to fill remaining space
+item:set_flex_grow(1)
+
+-- Make an item grow twice as much as others
+item:set_flex_grow(2)
+```
+
+#### Example Layout
+
+Here's a complete example creating a responsive flex layout:
+
+```lua
+local container = lvgl.obj(screen)
+container:set({
+    width = lvgl.HOR_RES(),
+    height = lvgl.VER_RES(),
+    layout = lvgl.LAYOUT_FLEX,
+    flex = {
+        flex_direction = "row",
+        flex_wrap = "wrap",
+        justify_content = "space-between",
+        align_items = "center"
+    }
+})
+
+-- Add some items
+for i = 1, 5 do
+    local item = lvgl.obj(container)
+    item:set({
+        width = 100,
+        height = 100
+    })
+    if i == 1 then
+        item:set_flex_grow(1)  -- First item grows to fill space
+    end
+end
+```
+
+This creates a responsive container with wrapped items, where the first item grows to fill available space while maintaining equal spacing between items.
+
 ### Grid Layout
+
+The Grid Layout is a powerful system for creating complex, responsive layouts based on a grid structure. It allows you to create both fixed and flexible grid systems.
+
+#### Enabling Grid Layout
+
+To use grid layout, set the layout property to `LAYOUT_GRID`:
+
+```lua
+container:set({
+    layout = lvgl.LAYOUT_GRID
+})
+
+-- Define your grid structure using column and row descriptions
+container:set {
+    grid = {
+        column_dsc = "100px 1fr 100px",    -- Three columns: fixed, flexible, fixed
+        row_dsc = "50px 1fr 50px"          -- Three rows: fixed, flexible, fixed
+    }
+}
+```
+
+Grid track sizes can be specified as:
+- Fixed size in pixels (e.g., "100px")
+- Fractional unit (e.g., "1fr") - takes remaining space proportionally
+- Content size ("content") - sizes to content
+- Percentage of parent ("40%") - using lvgl.PCT(40)
+
+#### Grid Item Placement
+
+Place items in the grid using `set_grid_cell`:
+
+```lua
+-- Place item at column 1, row 1, spanning 1 column and 1 row
+item:set_grid_cell(1, 1, 1, 1)  -- col, row, col_span, row_span
+
+-- Create a larger item spanning multiple cells
+header:set_grid_cell(0, 0, 3, 1)  -- Span all 3 columns in first row
+```
+
+#### Grid Alignment
+
+Control how items align within their grid cells using `lvgl.GRID_ALIGN`:
 
 ```lua
 container:set {
     grid = {
-        column_dsc = "100px 1fr 100px",
-        row_dsc = "50px 1fr 50px",
+        column_align = lvgl.GRID_ALIGN.STRETCH,     -- Stretch items to fill column width
+        row_align = lvgl.GRID_ALIGN.CENTER          -- Center items vertically
+    }
+}
+```
+
+Available alignment options:
+- `START` - Align to start of cell
+- `CENTER` - Center in cell
+- `END` - Align to end of cell
+- `STRETCH` - Stretch to fill cell
+- `SPACE_EVENLY` - Equal space between and around items
+- `SPACE_AROUND` - Equal space around items
+- `SPACE_BETWEEN` - Equal space between items
+
+#### Complete Grid Example
+
+Here's an example creating a responsive dashboard layout:
+
+```lua
+local container = root:Object {
+    w = lvgl.HOR_RES(),
+    h = lvgl.VER_RES()
+}
+
+-- Set up grid layout
+container:set {
+    layout = lvgl.LAYOUT_GRID,
+    grid = {
+        column_dsc = "200px 1fr 1fr",          -- Fixed sidebar, two flexible columns
+        row_dsc = "50px 1fr 100px",            -- Header, content area, footer
+        column_align = lvgl.GRID_ALIGN.STRETCH, -- Stretch items horizontally
+        row_align = lvgl.GRID_ALIGN.STRETCH    -- Stretch items vertically
     }
 }
 
--- Place child in grid
-child:set_grid_cell(1, 1, 1, 1) -- col, row, col_span, row_span
+-- Create header spanning all columns
+local header = container:Object {
+    bg_color = "#2196F3"
+}
+header:set_grid_cell(0, 0, 3, 1)  -- col 0, row 0, span 3 columns, 1 row
+
+-- Create sidebar
+local sidebar = container:Object {
+    bg_color = "#1976D2"
+}
+sidebar:set_grid_cell(0, 1, 1, 1)  -- col 0, row 1, span 1 column, 1 row
+
+-- Create main content areas
+local content1 = container:Object {
+    bg_color = "#BBDEFB"
+}
+content1:set_grid_cell(1, 1, 1, 1)
+
+local content2 = container:Object {
+    bg_color = "#E3F2FD"
+}
+content2:set_grid_cell(2, 1, 1, 1)
+
+-- Create footer spanning all columns
+local footer = container:Object {
+    bg_color = "#1565C0"
+}
+footer:set_grid_cell(0, 2, 3, 1)  -- col 0, row 2, span 3 columns, 1 row
 ```
+
+This creates a responsive layout with:
+- A full-width header and footer
+- A fixed-width sidebar
+- Two flexible content areas that adjust to available space
+
+The grid layout system provides a powerful way to create complex, responsive layouts while maintaining clean, maintainable code.
 
 ## Animations
 
