@@ -298,27 +298,6 @@ static void btn_event_handler(lv_event_t *e) {
   }
 }
 
-// Create a simple UI
-void createUI() {
-  // Get the active screen
-  // lv_obj_t *scr = lv_scr_act();
-
-  // Create a label
-  // label = lv_label_create(scr);
-  // lv_label_set_text(label, "Hello MeshPunk World!");
-  // lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
-
-  // // Create a button
-  // lv_obj_t *btn = lv_btn_create(scr);
-  // lv_obj_set_pos(btn, 50, 100);
-  // lv_obj_set_size(btn, 120, 50);
-  // lv_obj_add_event_cb(btn, btn_event_handler, LV_EVENT_CLICKED, NULL);
-
-  // // Create label on the button
-  // lv_obj_t *btn_label = lv_label_create(btn);
-  // lv_label_set_text(btn_label, "Click Me!");
-  // lv_obj_center(btn_label);
-}
 
 // Initialize LuaVGL
 void setupLuaVGL() {
@@ -534,9 +513,6 @@ void setup() {
 
   // Initialize LuaVGL
   setupLuaVGL();
-
-  // Create UI
-  createUI();
 
   // Adjust backlight
   pinMode(BOARD_BL_PIN, OUTPUT);
