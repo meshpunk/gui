@@ -1,5 +1,4 @@
 -- Main messenger application
-
 local messages = {
     {
         text = "Yo whats the best folk punk band",

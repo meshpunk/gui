@@ -298,7 +298,6 @@ static void btn_event_handler(lv_event_t *e) {
   }
 }
 
-
 // Initialize LuaVGL
 void setupLuaVGL() {
   // Create Lua state
@@ -361,7 +360,7 @@ void setupLuaVGL() {
   
   // Load and run the main script
   if (fs_mounted) {
-    if (loadLuaScript(L, "messenger.lua")) {
+    if (loadLuaScript(L, "sudoku.lua")) {
       Serial.println("Messenger app loaded successfully");
     } else {
       Serial.println("Failed to load messenger app, using fallback");
