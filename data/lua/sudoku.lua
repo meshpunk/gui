@@ -7,6 +7,7 @@ for i = 1, #clues do
     local clue = clues:sub(i, i)
     cells[i] = {
         value = clue,
+        notes = {},
         mutable = clue == ".",
         object = nil,
     }
@@ -121,13 +122,17 @@ for i = 0, 2 do
                     border_color = "#588bb8",
                 }
 
-                cell:add_style(focus_style, lvgl.STATE.FOCUSED)
+                cell:add_style(focus_style, lvgl.STATE.CHECKED)
 
                 local value = clues:sub(cell_index, cell_index)
                 if value ~= "." then
+                    local text_color = "#000000"
+                    if not cells[cell_index].mutable then text_color = "#808080" end
+
                     local text = cell:Label {
                         text = value,
                         align = lvgl.ALIGN.CENTER,
+                        text_color = text_color,
                         pad_all = 0,
                         pad_gap = 0,
                     }
@@ -138,7 +143,7 @@ for i = 0, 2 do
         end
     end
 end
-cells[selected_cell].object:add_state(lvgl.STATE.FOCUSED)
+cells[selected_cell].object:add_state(lvgl.STATE.CHECKED)
 
 -- Get the keyboard input device and connect it to our group
 local keyboard = lvgl.indev.get_next()
@@ -152,7 +157,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
 
     local key = string.char(indev:get_key()) 
     if key == "i" or key == "j" or key == "k" or key == "l" then
-        cells[selected_cell].object:clear_state(lvgl.STATE.FOCUSED)
+        cells[selected_cell].object:clear_state(lvgl.STATE.CHECKED)
 
         if key == "i" then
             selected_cell = selected_cell - 9
@@ -168,6 +173,6 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
             if selected_cell % 9 == 1 then selected_cell = selected_cell - 9 end    
         end
 
-        cells[selected_cell].object:add_state(lvgl.STATE.FOCUSED)
+        cells[selected_cell].object:add_state(lvgl.STATE.CHECKED)
     end
 end)
