@@ -142,10 +142,8 @@ cells[selected_cell].object:add_state(lvgl.STATE.FOCUSED)
 
 -- Get the keyboard input device and connect it to our group
 local keyboard = lvgl.indev.get_next()
-if keyboard then
-    print("Found keyboard input device")
-    keyboard:set_group(group)
-end
+if not keyboard then error("No keyboard input device found") end
+keyboard:set_group(group)
 
 -- Add keyboard event handler to button
 board:onevent(lvgl.EVENT.KEY, function(obj, code)
