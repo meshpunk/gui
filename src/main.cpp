@@ -360,10 +360,11 @@ void setupLuaVGL() {
   
   // Load and run the main script
   if (fs_mounted) {
-    if (loadLuaScript(L, "sudoku.lua")) {
-      Serial.println("Messenger app loaded successfully");
+    const char *script = "sudoku.lua";
+    if (loadLuaScript(L, script)) {
+      Serial.println(String(script) + " loaded successfully");
     } else {
-      Serial.println("Failed to load messenger app, using fallback");
+      Serial.println("Failed to load " + String(script) + ", using fallback");
       
       // Fallback to simple embedded script if the file isn't found
       const char *fallbackScript = R"(
