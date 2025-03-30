@@ -422,10 +422,7 @@ obj:clear_state(lvgl.STATE.DISABLED)   -- Remove a state
 local state = obj:get_state()          -- Get current state
 
 -- Example: Style based on state
-local style = lvgl.Style()
-style:set {
-    bg_color = "#FF0000"  -- Red background when checked
-}
+local style = lvgl.Style {bg_color = "#FF0000"}
 obj:add_style(style, lvgl.STATE.CHECKED)
 ```
 
