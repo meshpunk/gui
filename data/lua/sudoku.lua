@@ -8,9 +8,17 @@ for i = 1, #clues do
     cells[i] = {
         value = clue,
         notes = {},
-        notes_objects = {},
         mutable = clue == ".",
         object = nil,
+        setSelected = function (self, selected)
+            local fn = selected and "add_state" or "clear_state"
+
+            self.object[fn](self.object, lvgl.STATE.CHECKED)
+            for i = 0, self.object:get_child_cnt() - 1 do
+                local child = self.object:get_child(i)
+                child[fn](child, lvgl.STATE.CHECKED)
+            end
+        end,
     }
 end
 cells[2].notes[1] = true
@@ -163,7 +171,6 @@ for i = 0, 2 do
                                 bg_color = "#82b5c2",
                                 border_color = "#588bb8",
                             }, lvgl.STATE.CHECKED)
-                            table.insert(cells[cell_index].notes_objects, note)
                         end
                     end
                 end
@@ -185,10 +192,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
 
     local key = string.char(indev:get_key()) 
     if key == "i" or key == "j" or key == "k" or key == "l" then
-        cells[selected_cell].object:clear_state(lvgl.STATE.CHECKED)
-        for _, note in ipairs(cells[selected_cell].notes_objects) do
-            note:clear_state(lvgl.STATE.CHECKED)
-        end
+        cells[selected_cell]:setSelected(false)
 
         if key == "i" then
             selected_cell = selected_cell - 9
@@ -204,9 +208,6 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
             if selected_cell % 9 == 1 then selected_cell = selected_cell - 9 end    
         end
 
-        cells[selected_cell].object:add_state(lvgl.STATE.CHECKED)
-        for _, note in ipairs(cells[selected_cell].notes_objects) do
-            note:add_state(lvgl.STATE.CHECKED)
-        end
+        cells[selected_cell]:setSelected(true)
     end
 end)
