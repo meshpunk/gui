@@ -12,6 +12,19 @@ for i = 1, #clues do
         object = nil,
     }
 end
+cells[2].notes[1] = true
+cells[2].notes[5] = true
+cells[2].notes[9] = true
+
+cells[79].notes[2] = true
+cells[79].notes[3] = true
+cells[79].notes[7] = true
+
+-- compute sizes
+local cell_size = math.floor((lvgl.VER_RES()  - 20 ) / 9) -- closest multiple of 9 to desired size
+local board_size = cell_size * 9
+local note_marker_size = math.floor((cell_size - 4) / 3)
+local third_size = math.floor((cell_size - 2) / 3)
 
 -- RENDER
 local root = lvgl.Object()
@@ -24,9 +37,6 @@ root:set {
     bg_color = "#aaaaaa"
 }
 root:clear_flag(lvgl.FLAG.SCROLLABLE)
-
--- find closest multiple of 9 to desired size
-local board_size = math.floor((lvgl.VER_RES()  - 20 ) / 9) * 9
 
 local board = root:Object {
     w = board_size,
@@ -109,20 +119,20 @@ for i = 0, 2 do
                 local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
                 
                 local cell = row:Object {
-                    w = board_size / 9,
-                    h = board_size / 9,
+                    w = cell_size,
+                    h = cell_size,
                     bg_color = "#ffffff",
                     border_width = 1,
                     radius = 0,
+                    pad_all = 0,
                 }
                 cell:clear_flag(lvgl.FLAG.SCROLLABLE)
 
-                local focus_style = lvgl.Style {
+                cell:add_style(lvgl.Style {
                     bg_color = "#9ad4e3",
                     border_color = "#588bb8",
-                }
-
-                cell:add_style(focus_style, lvgl.STATE.CHECKED)
+                }, lvgl.STATE.CHECKED)
+                cells[cell_index].object = cell
 
                 local value = clues:sub(cell_index, cell_index)
                 if value ~= "." then
@@ -136,9 +146,21 @@ for i = 0, 2 do
                         pad_all = 0,
                         pad_gap = 0,
                     }
+                else
+                    for m = 1, 9 do
+                        if cells[cell_index].notes[m] then
+                            local note = cell:Object {
+                                w = note_marker_size,
+                                h = note_marker_size,
+                                bg_color = "#c4c4c4",
+                                border_width = 1,
+                                x = ((m - 1) % 3) * note_marker_size + 2,
+                                y = math.floor((m - 1) / 3) * note_marker_size + 2,
+                                radius = 0,
+                            }
+                        end
+                    end
                 end
-
-                cells[cell_index].object = cell
             end
         end
     end
