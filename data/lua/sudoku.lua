@@ -8,6 +8,7 @@ for i = 1, #clues do
     cells[i] = {
         value = clue,
         notes = {},
+        notes_objects = {},
         mutable = clue == ".",
         object = nil,
     }
@@ -158,6 +159,11 @@ for i = 0, 2 do
                                 y = math.floor((m - 1) / 3) * note_marker_size + 2,
                                 radius = 0,
                             }
+                            note:add_style(lvgl.Style {
+                                bg_color = "#82b5c2",
+                                border_color = "#588bb8",
+                            }, lvgl.STATE.CHECKED)
+                            table.insert(cells[cell_index].notes_objects, note)
                         end
                     end
                 end
@@ -180,6 +186,9 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     local key = string.char(indev:get_key()) 
     if key == "i" or key == "j" or key == "k" or key == "l" then
         cells[selected_cell].object:clear_state(lvgl.STATE.CHECKED)
+        for _, note in ipairs(cells[selected_cell].notes_objects) do
+            note:clear_state(lvgl.STATE.CHECKED)
+        end
 
         if key == "i" then
             selected_cell = selected_cell - 9
@@ -196,5 +205,8 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
         end
 
         cells[selected_cell].object:add_state(lvgl.STATE.CHECKED)
+        for _, note in ipairs(cells[selected_cell].notes_objects) do
+            note:add_state(lvgl.STATE.CHECKED)
+        end
     end
 end)
