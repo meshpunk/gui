@@ -1,6 +1,6 @@
 -- DATA
 local clues = "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......"
-local selected_cell = 41
+local selected = 41
 
 local cells = {}
 for i = 1, #clues do
@@ -28,6 +28,22 @@ cells[2].notes[9] = true
 cells[79].notes[2] = true
 cells[79].notes[3] = true
 cells[79].notes[7] = true
+
+local capital_keys_map = {
+    W = 1, E = 2, R = 3,
+    S = 4, D = 5, F = 6,
+    Z = 7, X = 8, C = 9,
+}
+local capital_keys = {}
+for key, _ in pairs(capital_keys_map) do table.insert(capital_keys, key) end
+
+-- local small_keys_map = {
+--     w = 1, e = 2, r = 3,
+--     s = 4, d = 5, f = 6,
+--     z = 7, x = 8, c = 9,
+-- }
+-- local small_keys = {}
+-- for key, _ in pairs(small_keys_map) do table.insert(small_keys, key) end
 
 -- compute sizes
 local cell_size = math.floor((lvgl.VER_RES()  - 20 ) / 9) -- closest multiple of 9 to desired size
@@ -178,7 +194,7 @@ for i = 0, 2 do
         end
     end
 end
-cells[selected_cell].object:add_state(lvgl.STATE.CHECKED)
+cells[selected].object:add_state(lvgl.STATE.CHECKED)
 
 -- Get the keyboard input device and connect it to our group
 local keyboard = lvgl.indev.get_next()
@@ -191,23 +207,40 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     if not indev then return end
 
     local key = string.char(indev:get_key()) 
+    local selected_cell = cells[selected]
+
     if key == "i" or key == "j" or key == "k" or key == "l" then
-        cells[selected_cell]:setSelected(false)
+        selected_cell:setSelected(false)
 
         if key == "i" then
-            selected_cell = selected_cell - 9
-            if selected_cell < 1 then selected_cell = selected_cell + 81 end
+            selected = selected - 9
+            if selected < 1 then selected = selected + 81 end
         elseif key == "j" then
-            selected_cell = selected_cell - 1
-            if selected_cell % 9 == 0 then selected_cell = selected_cell + 9 end
+            selected = selected - 1
+            if selected % 9 == 0 then selected = selected + 9 end
         elseif key == "k" then
-            selected_cell = selected_cell + 9
-            if selected_cell > 81 then selected_cell = selected_cell - 81 end
+            selected = selected + 9
+            if selected > 81 then selected = selected - 81 end
         elseif key == "l" then
-            selected_cell = selected_cell + 1
-            if selected_cell % 9 == 1 then selected_cell = selected_cell - 9 end    
+            selected = selected + 1
+            if selected % 9 == 1 then selected = selected - 9 end    
         end
 
-        cells[selected_cell]:setSelected(true)
+        cells[selected]:setSelected(true)
+        return
+    elseif not selected_cell.mutable then return end
+
+    local is_capital_number = false
+    for _, capital_key in ipairs(capital_keys) do
+        if key == capital_key then is_capital_number = true break end
+    end
+    if is_capital_number then
+        local number = capital_keys_map[key]
+        if selected_cell.notes[number] then
+            selected_cell.notes[number] = false
+        else
+            selected_cell.notes[number] = true
+        end
+        print(selected_cell.notes[number])
     end
 end)
