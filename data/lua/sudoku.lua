@@ -1,3 +1,9 @@
+-- compute sizes
+local cell_size = math.floor((lvgl.VER_RES()  - 20 ) / 9) -- closest multiple of 9 to desired size
+local board_size = cell_size * 9
+local note_marker_size = math.floor((cell_size - 4) / 3)
+local third_size = math.floor((cell_size - 2) / 3)
+
 -- DATA
 local clues = "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......"
 local selected = 41
@@ -14,11 +20,31 @@ for i = 1, #clues do
             local fn = selected and "add_state" or "clear_state"
 
             self.object[fn](self.object, lvgl.STATE.CHECKED)
-            for i = 0, self.object:get_child_cnt() - 1 do
+            for i = 0, self.object:get_child_cnt() - 1 do -- propagate to children
                 local child = self.object:get_child(i)
                 child[fn](child, lvgl.STATE.CHECKED)
             end
         end,
+        renderNotes = function (self)
+            self.object:clean()
+            for m = 1, 9 do
+                if self.notes[m] then
+                    local note = self.object:Object {
+                        w = note_marker_size,
+                        h = note_marker_size,
+                        bg_color = "#c4c4c4",
+                        border_width = 1,
+                        x = ((m - 1) % 3) * note_marker_size + 2,
+                        y = math.floor((m - 1) / 3) * note_marker_size + 2,
+                        radius = 0,
+                    }
+                    note:add_style(lvgl.Style {
+                        bg_color = "#82b5c2",
+                        border_color = "#588bb8",
+                    }, lvgl.STATE.CHECKED)
+                end
+            end
+        end
     }
 end
 cells[2].notes[1] = true
@@ -29,6 +55,7 @@ cells[79].notes[2] = true
 cells[79].notes[3] = true
 cells[79].notes[7] = true
 
+-- keyboard numpad letters to numbers
 local capital_keys_map = {
     W = 1, E = 2, R = 3,
     S = 4, D = 5, F = 6,
@@ -37,19 +64,13 @@ local capital_keys_map = {
 local capital_keys = {}
 for key, _ in pairs(capital_keys_map) do table.insert(capital_keys, key) end
 
--- local small_keys_map = {
---     w = 1, e = 2, r = 3,
---     s = 4, d = 5, f = 6,
---     z = 7, x = 8, c = 9,
--- }
--- local small_keys = {}
--- for key, _ in pairs(small_keys_map) do table.insert(small_keys, key) end
-
--- compute sizes
-local cell_size = math.floor((lvgl.VER_RES()  - 20 ) / 9) -- closest multiple of 9 to desired size
-local board_size = cell_size * 9
-local note_marker_size = math.floor((cell_size - 4) / 3)
-local third_size = math.floor((cell_size - 2) / 3)
+local small_keys_map = {
+    w = 1, e = 2, r = 3,
+    s = 4, d = 5, f = 6,
+    z = 7, x = 8, c = 9,
+}
+local small_keys = {}
+for key, _ in pairs(small_keys_map) do table.insert(small_keys, key) end
 
 -- RENDER
 local root = lvgl.Object()
@@ -172,23 +193,7 @@ for i = 0, 2 do
                         pad_gap = 0,
                     }
                 else
-                    for m = 1, 9 do
-                        if cells[cell_index].notes[m] then
-                            local note = cell:Object {
-                                w = note_marker_size,
-                                h = note_marker_size,
-                                bg_color = "#c4c4c4",
-                                border_width = 1,
-                                x = ((m - 1) % 3) * note_marker_size + 2,
-                                y = math.floor((m - 1) / 3) * note_marker_size + 2,
-                                radius = 0,
-                            }
-                            note:add_style(lvgl.Style {
-                                bg_color = "#82b5c2",
-                                border_color = "#588bb8",
-                            }, lvgl.STATE.CHECKED)
-                        end
-                    end
+                    cells[cell_index]:renderNotes()
                 end
             end
         end
@@ -236,11 +241,9 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     end
     if is_capital_number then
         local number = capital_keys_map[key]
-        if selected_cell.notes[number] then
-            selected_cell.notes[number] = false
-        else
-            selected_cell.notes[number] = true
-        end
-        print(selected_cell.notes[number])
+        if selected_cell.notes[number] then selected_cell.notes[number] = false
+        else selected_cell.notes[number] = true end
+        selected_cell:renderNotes()
+        selected_cell:setSelected(true)
     end
 end)
