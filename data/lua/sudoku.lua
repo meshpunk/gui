@@ -5,10 +5,41 @@ local note_marker_size = math.floor((cell_size - 4) / 3)
 local third_size = math.floor((cell_size - 2) / 3)
 
 -- DATA
-local clues = "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......"
+local clues = "3..967..1.4.3.2.8..2.....7..7.....9....873...5...1...3..47.51..9.5...2.78..621..4"
 local selected = 41
 
-local cells = {}
+local cells = {
+    coordinates = function (self, index)
+        return {
+            row = math.floor((index - 1) / 9) + 1,
+            col = (index - 1) % 9 + 1
+        }
+    end,
+    at = function (self, row, col)
+        return self[(row - 1) * 9 + col]
+    end,
+    row = function (self, index)
+        local row = {}
+        for i = 1, 9 do table.insert(row, self:at(index, i)) end
+        return row
+    end,
+    col = function (self, index)
+        local col = {}
+        for i = 1, 9 do table.insert(col, self:at(i, index)) end
+        return col
+    end,
+    box = function (self, row, col)
+        local box = {}
+        row = math.floor((row - 1) / 3) * 3
+        col = math.floor((col - 1) / 3) * 3
+        for i = 1, 3 do
+            for j = 1, 3 do
+                table.insert(box, self:at(row + i, col + j))
+            end
+        end
+        return box
+    end,
+}
 for i = 1, #clues do
     local clue = clues:sub(i, i)
     cells[i] = {
@@ -25,35 +56,40 @@ for i = 1, #clues do
                 child[fn](child, lvgl.STATE.CHECKED)
             end
         end,
-        renderNotes = function (self)
+        render_children = function (self)
             self.object:clean()
-            for m = 1, 9 do
-                if self.notes[m] then
-                    local note = self.object:Object {
-                        w = note_marker_size,
-                        h = note_marker_size,
-                        bg_color = "#c4c4c4",
-                        border_width = 1,
-                        x = ((m - 1) % 3) * note_marker_size + 2,
-                        y = math.floor((m - 1) / 3) * note_marker_size + 2,
-                        radius = 0,
-                    }
-                    note:add_style(lvgl.Style {
-                        bg_color = "#82b5c2",
-                        border_color = "#588bb8",
-                    }, lvgl.STATE.CHECKED)
+            if self.value == "." then
+                for m = 1, 9 do
+                    if self.notes[m] then
+                        local note = self.object:Object {
+                            w = note_marker_size,
+                            h = note_marker_size,
+                            bg_color = "#c4c4c4",
+                            border_width = 1,
+                            x = ((m - 1) % 3) * note_marker_size + 2,
+                            y = math.floor((m - 1) / 3) * note_marker_size + 2,
+                            radius = 0,
+                        }
+                        note:add_style(lvgl.Style {
+                            bg_color = "#82b5c2",
+                            border_color = "#588bb8",
+                        }, lvgl.STATE.CHECKED)
+                    end
                 end
+            else 
+                local text_color = "#000000"
+                if not self.mutable then text_color = "#808080" end
+                local text = self.object:Label {
+                    text = self.value,
+                    align = lvgl.ALIGN.CENTER,
+                    text_color = text_color,
+                    pad_all = 0,
+                    pad_gap = 0,
+                }
             end
         end
     }
 end
-cells[2].notes[1] = true
-cells[2].notes[5] = true
-cells[2].notes[9] = true
-
-cells[79].notes[2] = true
-cells[79].notes[3] = true
-cells[79].notes[7] = true
 
 -- keyboard numpad letters to numbers
 local capital_keys_map = {
@@ -181,10 +217,10 @@ for i = 0, 2 do
                 cells[cell_index].object = cell
 
                 local value = clues:sub(cell_index, cell_index)
-                if value ~= "." then
+
+                if cells[cell_index].value ~= "." then
                     local text_color = "#000000"
                     if not cells[cell_index].mutable then text_color = "#808080" end
-
                     local text = cell:Label {
                         text = value,
                         align = lvgl.ALIGN.CENTER,
@@ -193,7 +229,7 @@ for i = 0, 2 do
                         pad_gap = 0,
                     }
                 else
-                    cells[cell_index]:renderNotes()
+                    cells[cell_index]:render_children()
                 end
             end
         end
@@ -235,15 +271,55 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
         return
     elseif not selected_cell.mutable then return end
 
+    -- change notes
     local is_capital_number = false
     for _, capital_key in ipairs(capital_keys) do
         if key == capital_key then is_capital_number = true break end
     end
     if is_capital_number then
+        selected_cell.value = "."
         local number = capital_keys_map[key]
         if selected_cell.notes[number] then selected_cell.notes[number] = false
         else selected_cell.notes[number] = true end
-        selected_cell:renderNotes()
+        selected_cell:render_children()
+        selected_cell:setSelected(true)
+    end
+
+    -- change value
+    local is_small_number = false
+    for _, small_key in ipairs(small_keys) do
+        if key == small_key then is_small_number = true break end
+    end
+    if is_small_number then
+        selected_cell.notes = {}
+        local number = small_keys_map[key]
+        if selected_cell.value == number then
+            selected_cell.value = "."
+        else 
+            selected_cell.value = number
+
+            -- clear notes by sudoku
+            local selected_coords = cells:coordinates(selected)
+            for _, cell in ipairs(cells:row(selected_coords.row)) do
+                if cell.notes[number] then 
+                    cell.notes[number] = false 
+                    cell:render_children()  
+                end
+            end
+            for _, cell in ipairs(cells:col(selected_coords.col)) do
+                if cell.notes[number] then 
+                    cell.notes[number] = false 
+                    cell:render_children()
+                end
+            end
+            for _, cell in ipairs(cells:box(selected_coords.row, selected_coords.col)) do
+                if cell.notes[number] then 
+                    cell.notes[number] = false 
+                    cell:render_children()
+                end
+            end
+        end
+        selected_cell:render_children()
         selected_cell:setSelected(true)
     end
 end)
