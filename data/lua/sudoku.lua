@@ -5,7 +5,8 @@ local note_marker_size = math.floor((cell_size - 4) / 3)
 local third_size = math.floor((cell_size - 2) / 3)
 
 -- DATA
-local clues = "3..967..1.4.3.2.8..2.....7..7.....9....873...5...1...3..47.51..9.5...2.78..621..4"
+local clues = ".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4....."
+assert(#clues == 81)
 local selected = 41
 
 local cells = {
@@ -46,6 +47,7 @@ for i = 1, #clues do
         value = clue,
         notes = {},
         mutable = clue == ".",
+        text_color = (clue == "." and "#000000") or "#808080",
         object = nil,
         setSelected = function (self, selected)
             local fn = selected and "add_state" or "clear_state"
@@ -77,12 +79,10 @@ for i = 1, #clues do
                     end
                 end
             else 
-                local text_color = "#000000"
-                if not self.mutable then text_color = "#808080" end
                 local text = self.object:Label {
                     text = self.value,
                     align = lvgl.ALIGN.CENTER,
-                    text_color = text_color,
+                    text_color = self.text_color,
                     pad_all = 0,
                     pad_gap = 0,
                 }
