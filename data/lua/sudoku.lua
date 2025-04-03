@@ -7,6 +7,9 @@ local third_size = math.floor((cell_size - 2) / 3)
 -- DATA
 local clues = ".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4....."
 assert(#clues == 81)
+local remaining = 81
+for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
+
 local selected = 41
 
 local cells = {
@@ -295,8 +298,10 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
         local number = small_keys_map[key]
         if selected_cell.value == number then
             selected_cell.value = "."
+            remaining = remaining + 1
         else 
             selected_cell.value = number
+            remaining = remaining - 1
 
             -- clear notes by sudoku
             local selected_coords = cells:coordinates(selected)
@@ -321,5 +326,31 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
         end
         selected_cell:render_children()
         selected_cell:setSelected(true)
+
+        -- check if the sudoku is solved
+        if remaining == 0 then
+            for i = 1, 9 do
+                local values = {}
+                for _, cell in ipairs(cells:row(i)) do
+                    if values[cell.value] then return end
+                    values[cell.value] = true
+                end
+
+                values = {}
+                for _, cell in ipairs(cells:col(i)) do
+                    if values[cell.value] then return end
+                    values[cell.value] = true
+                end
+
+                values = {}
+                local coords = cells:coordinates(i * 9)
+                for _, cell in ipairs(cells:box(coords.row, coords.col)) do
+                    if values[cell.value] then return end
+                    values[cell.value] = true
+                end
+
+                print("Sudoku solved")
+            end
+        end
     end
 end)
