@@ -6,7 +6,9 @@ local third_size = math.floor((cell_size - 2) / 3)
 
 -- DATA
 local clues = ".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4....."
+-- local clues = "7351649284269783151985326742493817563872561495617498328526174939148235676734952.."
 assert(#clues == 81)
+
 local remaining = 81
 for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
 
@@ -44,55 +46,66 @@ local cells = {
         return box
     end,
 }
-for i = 1, #clues do
-    local clue = clues:sub(i, i)
-    cells[i] = {
-        value = clue,
-        notes = {},
-        mutable = clue == ".",
-        text_color = (clue == "." and "#000000") or "#808080",
-        object = nil,
-        setSelected = function (self, selected)
-            local fn = selected and "add_state" or "clear_state"
 
-            self.object[fn](self.object, lvgl.STATE.CHECKED)
-            for i = 0, self.object:get_child_cnt() - 1 do -- propagate to children
-                local child = self.object:get_child(i)
-                child[fn](child, lvgl.STATE.CHECKED)
-            end
-        end,
-        render_children = function (self)
-            self.object:clean()
-            if self.value == "." then
-                for m = 1, 9 do
-                    if self.notes[m] then
-                        local note = self.object:Object {
-                            w = note_marker_size,
-                            h = note_marker_size,
-                            bg_color = "#c4c4c4",
-                            border_width = 1,
-                            x = ((m - 1) % 3) * note_marker_size + 2,
-                            y = math.floor((m - 1) / 3) * note_marker_size + 2,
-                            radius = 0,
-                        }
-                        note:add_style(lvgl.Style {
-                            bg_color = "#82b5c2",
-                            border_color = "#588bb8",
-                        }, lvgl.STATE.CHECKED)
-                    end
-                end
-            else 
-                local text = self.object:Label {
-                    text = self.value,
-                    align = lvgl.ALIGN.CENTER,
-                    text_color = self.text_color,
-                    pad_all = 0,
-                    pad_gap = 0,
-                }
-            end
+local Cell = {
+    text_color = {
+        normal = "#000000",
+        immutable = "#808080",
+    },
+    setSelected = function (self, selected)
+        local fn = selected and "add_state" or "clear_state"
+
+        self.object[fn](self.object, lvgl.STATE.CHECKED)
+        for i = 0, self.object:get_child_cnt() - 1 do -- propagate to children
+            local child = self.object:get_child(i)
+            child[fn](child, lvgl.STATE.CHECKED)
         end
-    }
+    end,
+    render_children = function (self)
+        self.object:clean()
+        if self.value == "." then
+            for m = 1, 9 do
+                if self.notes[m] then
+                    local note = self.object:Object {
+                        w = note_marker_size,
+                        h = note_marker_size,
+                        bg_color = "#c4c4c4",
+                        border_width = 1,
+                        x = ((m - 1) % 3) * note_marker_size + 2,
+                        y = math.floor((m - 1) / 3) * note_marker_size + 2,
+                        radius = 0,
+                    }
+                    note:add_style(lvgl.Style {
+                        bg_color = "#82b5c2",
+                        border_color = "#588bb8",
+                    }, lvgl.STATE.CHECKED)
+                end
+            end
+        else 
+            local text = self.object:Label {
+                text = self.value,
+                align = lvgl.ALIGN.CENTER,
+                text_color = self.text_color,
+                pad_all = 0,
+                pad_gap = 0,
+            }
+        end
+    end
+}
+
+function Cell:new(value)
+    local o = {}
+    o.notes = {}
+    o.value = value
+    o.mutable = value == "."
+    o.text_color = (o.mutable and Cell.text_color.normal) or Cell.text_color.immutable
+
+    setmetatable(o, self)
+    self.__index = self
+    return o
 end
+
+for i = 1, #clues do cells[i] = Cell:new(clues:sub(i, i)) end
 
 -- keyboard numpad letters to numbers
 local capital_keys_map = {
@@ -329,6 +342,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
 
         -- check if the sudoku is solved
         if remaining == 0 then
+            print("Checking if the sudoku is solved")
             for i = 1, 9 do
                 local values = {}
                 for _, cell in ipairs(cells:row(i)) do
