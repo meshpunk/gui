@@ -55,8 +55,22 @@ local Cell = {
     setSelected = function (self, selected)
         local fn = selected and "add_state" or "clear_state"
 
-        self.object[fn](self.object, lvgl.STATE.CHECKED)
+        self.object[fn](self.object, lvgl.STATE.EDITED)
         for i = 0, self.object:get_child_cnt() - 1 do -- propagate to children
+            local child = self.object:get_child(i)
+            child[fn](child, lvgl.STATE.EDITED)
+        end
+
+        -- set checked for all matching numbers
+        if self.value ~= "." then for i, cell in ipairs(cells) do
+            if cell.value == self.value then cell:setChecked(selected) end
+        end end
+    end,
+    setChecked = function (self, checked)
+        print("set checked")
+        local fn = checked and "add_state" or "clear_state"
+        self.object[fn](self.object, lvgl.STATE.CHECKED)
+        for i = 0, self.object:get_child_cnt() - 1 do 
             local child = self.object:get_child(i)
             child[fn](child, lvgl.STATE.CHECKED)
         end
@@ -66,7 +80,7 @@ local Cell = {
         if self.value == "." then
             for m = 1, 9 do
                 if self.notes[m] then
-                    local note = self.object:Object {
+                    self.object:Object {
                         w = note_marker_size,
                         h = note_marker_size,
                         bg_color = "#c4c4c4",
@@ -74,21 +88,22 @@ local Cell = {
                         x = ((m - 1) % 3) * note_marker_size + 2,
                         y = math.floor((m - 1) / 3) * note_marker_size + 2,
                         radius = 0,
-                    }
-                    note:add_style(lvgl.Style {
+                    }:add_style(lvgl.Style {
                         bg_color = "#82b5c2",
                         border_color = "#588bb8",
-                    }, lvgl.STATE.CHECKED)
+                    }, lvgl.STATE.EDITED)
                 end
             end
         else 
-            local text = self.object:Label {
+            self.object:Label {
                 text = self.value,
                 align = lvgl.ALIGN.CENTER,
                 text_color = self.text_color,
                 pad_all = 0,
                 pad_gap = 0,
-            }
+            }:add_style(lvgl.Style {
+                text_color = "#588bb8",
+            }, lvgl.STATE.CHECKED)
         end
     end
 }
@@ -224,34 +239,18 @@ for i = 0, 2 do
                     radius = 0,
                     pad_all = 0,
                 }
-                cell:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-                cell:add_style(lvgl.Style {
-                    bg_color = "#9ad4e3",
-                    border_color = "#588bb8",
-                }, lvgl.STATE.CHECKED)
+                    :add_style(lvgl.Style {
+                        bg_color = "#9ad4e3",
+                        border_color = "#588bb8",
+                    }, lvgl.STATE.EDITED)
+                    :clear_flag(lvgl.FLAG.SCROLLABLE)
                 cells[cell_index].object = cell
-
-                local value = clues:sub(cell_index, cell_index)
-
-                if cells[cell_index].value ~= "." then
-                    local text_color = "#000000"
-                    if not cells[cell_index].mutable then text_color = "#808080" end
-                    local text = cell:Label {
-                        text = value,
-                        align = lvgl.ALIGN.CENTER,
-                        text_color = text_color,
-                        pad_all = 0,
-                        pad_gap = 0,
-                    }
-                else
-                    cells[cell_index]:render_children()
-                end
+                cells[cell_index]:render_children()
             end
         end
     end
 end
-cells[selected].object:add_state(lvgl.STATE.CHECKED)
+cells[selected].object:add_state(lvgl.STATE.EDITED)
 
 -- Get the keyboard input device and connect it to our group
 local keyboard = lvgl.indev.get_next()
