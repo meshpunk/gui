@@ -47,32 +47,20 @@ local cells = {
     end,
 }
 
+local propagate_state = require("ui-utils").propagate_state
+
 local Cell = {
     text_color = {
         normal = "#000000",
         immutable = "#808080",
     },
     setSelected = function (self, selected)
-        local fn = selected and "add_state" or "clear_state"
-
-        self.object[fn](self.object, lvgl.STATE.EDITED)
-        for i = 0, self.object:get_child_cnt() - 1 do -- propagate to children
-            local child = self.object:get_child(i)
-            child[fn](child, lvgl.STATE.EDITED)
-        end
+        propagate_state(self.object, lvgl.STATE.EDITED, selected)
 
         -- set checked for all matching numbers
-        if self.value ~= "." then for i, cell in ipairs(cells) do
-            if cell.value == self.value then cell:setChecked(selected) end
-        end end
-    end,
-    setChecked = function (self, checked)
-        print("set checked")
-        local fn = checked and "add_state" or "clear_state"
-        self.object[fn](self.object, lvgl.STATE.CHECKED)
-        for i = 0, self.object:get_child_cnt() - 1 do 
-            local child = self.object:get_child(i)
-            child[fn](child, lvgl.STATE.CHECKED)
+        if self.value == "." then return end
+        for i, cell in ipairs(cells) do
+            if cell.value == self.value then propagate_state(cell.object, lvgl.STATE.CHECKED, selected) end
         end
     end,
     render_children = function (self)
@@ -95,7 +83,19 @@ local Cell = {
                 end
             end
         else 
-            self.object:Label {
+            local container = self.object:Object {
+                w = cell_size - 8,
+                h = cell_size - 8,
+                bg_color = "#ffffff",
+                border_width = 0,
+                radius = 3,
+                x = 3,
+                y = 3,
+            }:add_style(lvgl.Style {
+                bg_color = "#9ad4e3",
+            }, lvgl.STATE.CHECKED):clear_flag(lvgl.FLAG.SCROLLABLE)
+
+            container:Label {
                 text = self.value,
                 align = lvgl.ALIGN.CENTER,
                 text_color = self.text_color,
@@ -340,6 +340,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
         selected_cell:setSelected(true)
 
         -- check if the sudoku is solved
+        -- there are 9 columns, 9 rows, 9 boxes: check for any duplicates in any of these
         if remaining == 0 then
             print("Checking if the sudoku is solved")
             for i = 1, 9 do
