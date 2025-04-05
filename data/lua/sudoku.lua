@@ -304,16 +304,17 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     end
     if is_small_number then
         selected_cell.notes = {}
-        local number = small_keys_map[key]
+        local chosen = small_keys_map[key]
         selected_cell:setSelected(false)
-        if selected_cell.value == number then
+        if selected_cell.value == chosen then
             selected_cell.value = "."
             remaining = remaining + 1
         else 
-            selected_cell.value = number
+            selected_cell.value = chosen
             remaining = remaining - 1
 
             -- clear notes by sudoku
+            local number = tonumber(chosen)
             local selected_coords = cells:coordinates(selected)
             for _, cell in ipairs(cells:row(selected_coords.row)) do
                 if cell.notes[number] then 
