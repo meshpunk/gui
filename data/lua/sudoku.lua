@@ -89,8 +89,7 @@ local Cell = {
                 bg_color = "#ffffff",
                 border_width = 0,
                 radius = 3,
-                x = 3,
-                y = 3,
+                align = lvgl.ALIGN.CENTER,
             }:add_style(lvgl.Style {
                 bg_color = "#9ad4e3",
             }, lvgl.STATE.CHECKED):clear_flag(lvgl.FLAG.SCROLLABLE)
@@ -108,19 +107,32 @@ local Cell = {
     end
 }
 
-function Cell:new(value)
+function Cell:new(value, obj_container)
     local o = {}
     o.notes = {}
-    o.value = value
     o.mutable = value == "."
     o.text_color = (o.mutable and Cell.text_color.normal) or Cell.text_color.immutable
+    o.value = value
+    o.object = obj_container:Object {
+        w = cell_size,
+        h = cell_size,
+        bg_color = "#ffffff",
+        border_width = 1,
+        radius = 0,
+        pad_all = 0,
+    }
+    :add_style(lvgl.Style {
+        bg_color = "#9ad4e3",
+        border_color = "#588bb8",
+    }, lvgl.STATE.EDITED)
+    :clear_flag(lvgl.FLAG.SCROLLABLE)
 
     setmetatable(o, self)
     self.__index = self
+
+    o:render_children()
     return o
 end
-
-for i = 1, #clues do cells[i] = Cell:new(clues:sub(i, i)) end
 
 -- keyboard numpad letters to numbers
 local capital_keys_map = {
@@ -132,9 +144,9 @@ local capital_keys = {}
 for key, _ in pairs(capital_keys_map) do table.insert(capital_keys, key) end
 
 local small_keys_map = {
-    w = 1, e = 2, r = 3,
-    s = 4, d = 5, f = 6,
-    z = 7, x = 8, c = 9,
+    w = "1", e = "2", r = "3",
+    s = "4", d = "5", f = "6",
+    z = "7", x = "8", c = "9",
 }
 local small_keys = {}
 for key, _ in pairs(small_keys_map) do table.insert(small_keys, key) end
@@ -225,27 +237,11 @@ for i = 0, 2 do
                 },
                 pad_all = 0,
                 pad_gap = 0,
-            }
-            row:clear_flag(lvgl.FLAG.SCROLLABLE)
+            }:clear_flag(lvgl.FLAG.SCROLLABLE)
 
             for l = 0, 2 do
                 local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
-                
-                local cell = row:Object {
-                    w = cell_size,
-                    h = cell_size,
-                    bg_color = "#ffffff",
-                    border_width = 1,
-                    radius = 0,
-                    pad_all = 0,
-                }
-                    :add_style(lvgl.Style {
-                        bg_color = "#9ad4e3",
-                        border_color = "#588bb8",
-                    }, lvgl.STATE.EDITED)
-                    :clear_flag(lvgl.FLAG.SCROLLABLE)
-                cells[cell_index].object = cell
-                cells[cell_index]:render_children()
+                cells[cell_index] = Cell:new(clues:sub(cell_index, cell_index), row)
             end
         end
     end
@@ -292,6 +288,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
         if key == capital_key then is_capital_number = true break end
     end
     if is_capital_number then
+        if selected_cell.value ~= "." then selected_cell:setSelected(false) end
         selected_cell.value = "."
         local number = capital_keys_map[key]
         if selected_cell.notes[number] then selected_cell.notes[number] = false
@@ -308,6 +305,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     if is_small_number then
         selected_cell.notes = {}
         local number = small_keys_map[key]
+        selected_cell:setSelected(false)
         if selected_cell.value == number then
             selected_cell.value = "."
             remaining = remaining + 1
