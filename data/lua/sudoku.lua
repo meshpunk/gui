@@ -1,17 +1,67 @@
+-- keyboard numpad letters to numbers
+local capital_keys_map = {
+    W = 1, E = 2, R = 3,
+    S = 4, D = 5, F = 6,
+    Z = 7, X = 8, C = 9,
+}
+local capital_keys = {}
+for key, _ in pairs(capital_keys_map) do table.insert(capital_keys, key) end
+
+local small_keys_map = {
+    w = "1", e = "2", r = "3",
+    s = "4", d = "5", f = "6",
+    z = "7", x = "8", c = "9",
+}
+local small_keys = {}
+for key, _ in pairs(small_keys_map) do table.insert(small_keys, key) end
+
 -- compute sizes
 local cell_size = math.floor((lvgl.VER_RES()  - 20 ) / 9) -- closest multiple of 9 to desired size
 local board_size = cell_size * 9
 local note_marker_size = math.floor((cell_size - 4) / 3)
 local third_size = math.floor((cell_size - 2) / 3)
 
--- DATA
-local clues = ".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4....."
--- local clues = "7351649284269783151985326742493817563872561495617498328526174939148235676734952.."
-assert(#clues == 81)
+local reset
 
+-- root object
+local root = lvgl.Object()
+root:set { 
+    w = lvgl.HOR_RES(), 
+    h = lvgl.VER_RES(),
+    border_width = 0,
+    radius = 0,
+    pad_all = 0,
+    bg_color = "#aaaaaa"
+}
+root:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+local board = root:Object {
+    w = board_size,
+    h = board_size,
+    radius = 0,
+    outline_width = 1,
+    outline_pad = 0,
+    border_width = 0,
+    outline_color = "#000000",
+    bg_color = "#ffffff",
+    align = lvgl.ALIGN.CENTER,
+    pad_all = 0,
+    pad_gap = 0,
+    flex = {
+        flex_direction = "column",
+        justify_content = "center",
+        align_items = "center",
+    }
+}
+board:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+local group = lvgl.group.create()
+group:add_obj(board)
+group:set_default()
+
+-- DYNAMIC DATA
+-- board
 local remaining = 81
-for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
-
 local selected = 41
 
 local cells = {
@@ -48,7 +98,6 @@ local cells = {
 }
 
 local propagate_state = require("ui-utils").propagate_state
-
 local Cell = {
     text_color = {
         normal = "#000000",
@@ -134,126 +183,10 @@ function Cell:new(value, obj_container)
     return o
 end
 
--- keyboard numpad letters to numbers
-local capital_keys_map = {
-    W = 1, E = 2, R = 3,
-    S = 4, D = 5, F = 6,
-    Z = 7, X = 8, C = 9,
-}
-local capital_keys = {}
-for key, _ in pairs(capital_keys_map) do table.insert(capital_keys, key) end
-
-local small_keys_map = {
-    w = "1", e = "2", r = "3",
-    s = "4", d = "5", f = "6",
-    z = "7", x = "8", c = "9",
-}
-local small_keys = {}
-for key, _ in pairs(small_keys_map) do table.insert(small_keys, key) end
-
--- RENDER
-local root = lvgl.Object()
-root:set { 
-    w = lvgl.HOR_RES(), 
-    h = lvgl.VER_RES(),
-    border_width = 0,
-    radius = 0,
-    pad_all = 0,
-    bg_color = "#aaaaaa"
-}
-root:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-local board = root:Object {
-    w = board_size,
-    h = board_size,
-    radius = 0,
-    outline_width = 1,
-    outline_pad = 0,
-    border_width = 0,
-    outline_color = "#000000",
-    bg_color = "#ffffff",
-    align = lvgl.ALIGN.CENTER,
-    pad_all = 0,
-    pad_gap = 0,
-    flex = {
-        flex_direction = "column",
-        justify_content = "center",
-        align_items = "center",
-    }
-}
-board:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-local group = lvgl.group.create()
-group:add_obj(board)
-group:set_default()
-
-for i = 0, 2 do 
-    local subrow = board:Object {
-        w = board_size,
-        h = math.floor(board_size / 3),
-        bg_color = "#dddddd",
-        border_width = 0,
-        radius = 0,
-        flex = {
-            flex_direction = "row",
-            justify_content = "center",
-            align_items = "center",
-        },
-        pad_all = 0,
-        pad_gap = 0,
-    }
-    subrow:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-    for j = 0, 2 do
-        local subcol = subrow:Object {
-            w = board_size / 3,
-            h = board_size / 3,
-            bg_color = "#ffffff",
-            border_width = 1,
-            border_color = "#000000",
-            radius = 0,
-            align = lvgl.ALIGN.CENTER,
-            pad_all = 0,
-            pad_gap = 0,
-            flex = {
-                flex_direction = "column",
-                justify_content = "center",
-                align_items = "center",
-            }
-        }
-        subcol:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-        for k = 0, 2 do
-            local row = subcol:Object {
-                w = board_size / 3,
-                h = board_size / 9,
-                bg_color = "#ffffff",
-                border_width = 0,
-                radius = 0,
-                flex = {
-                    flex_direction = "row",
-                    justify_content = "center",
-                    align_items = "center",
-                },
-                pad_all = 0,
-                pad_gap = 0,
-            }:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-            for l = 0, 2 do
-                local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
-                cells[cell_index] = Cell:new(clues:sub(cell_index, cell_index), row)
-            end
-        end
-    end
-end
-cells[selected].object:add_state(lvgl.STATE.EDITED)
-
--- Get the keyboard input device and connect it to our group
+-- Keyboard input
 local keyboard = lvgl.indev.get_next()
 if not keyboard then error("No keyboard input device found") end
 keyboard:set_group(group)
-
--- Add keyboard event handler to button
 board:onevent(lvgl.EVENT.KEY, function(obj, code)
     local indev = lvgl.indev.get_act()
     if not indev then return end
@@ -310,8 +243,8 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
             selected_cell.value = "."
             remaining = remaining + 1
         else 
+            if selected_cell.value == "." then remaining = remaining - 1 end
             selected_cell.value = chosen
-            remaining = remaining - 1
 
             -- clear notes by sudoku
             local number = tonumber(chosen)
@@ -340,7 +273,9 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
 
         -- check if the sudoku is solved
         -- there are 9 columns, 9 rows, 9 boxes: check for any duplicates in any of these
+        print("remaining: " .. remaining)
         if remaining == 0 then
+            collectgarbage("collect")
             print("Checking if the sudoku is solved")
             for i = 1, 9 do
                 local values = {}
@@ -361,9 +296,86 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
                     if values[cell.value] then return end
                     values[cell.value] = true
                 end
-
-                print("Sudoku solved")
             end
+            print("Sudoku solved")
+            reset(".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4.....")
         end
     end
 end)
+
+-- reset
+local function reset_board(clues)
+    board:clean()
+    for i = 0, 2 do 
+        local subrow = board:Object {
+            w = board_size,
+            h = math.floor(board_size / 3),
+            bg_color = "#dddddd",
+            border_width = 0,
+            radius = 0,
+            flex = {
+                flex_direction = "row",
+                justify_content = "center",
+                align_items = "center",
+            },
+            pad_all = 0,
+            pad_gap = 0,
+        }
+        subrow:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+        for j = 0, 2 do
+            local subcol = subrow:Object {
+                w = board_size / 3,
+                h = board_size / 3,
+                bg_color = "#ffffff",
+                border_width = 1,
+                border_color = "#000000",
+                radius = 0,
+                align = lvgl.ALIGN.CENTER,
+                pad_all = 0,
+                pad_gap = 0,
+                flex = {
+                    flex_direction = "column",
+                    justify_content = "center",
+                    align_items = "center",
+                }
+            }
+            subcol:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+            for k = 0, 2 do
+                local row = subcol:Object {
+                    w = board_size / 3,
+                    h = board_size / 9,
+                    bg_color = "#ffffff",
+                    border_width = 0,
+                    radius = 0,
+                    flex = {
+                        flex_direction = "row",
+                        justify_content = "center",
+                        align_items = "center",
+                    },
+                    pad_all = 0,
+                    pad_gap = 0,
+                }:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+                for l = 0, 2 do
+                    local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
+                    cells[cell_index] = Cell:new(clues:sub(cell_index, cell_index), row)
+                end
+            end
+        end
+    end
+    cells[selected].object:add_state(lvgl.STATE.EDITED)
+end
+
+function reset(clues) 
+    assert(#clues == 81)
+    remaining = 81
+    for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
+    
+    selected = 41 
+    for i, _ in ipairs(cells) do cells[i] = nil end
+    reset_board(clues)
+end
+reset(".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4.....")
+-- reset("7351649284269783151985326742493817563872561495617498328526174939148235676734952..")
