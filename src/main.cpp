@@ -310,6 +310,9 @@ void setupLuaVGL() {
   // Open standard Lua libraries
   luaL_openlibs(L);
 
+  // Seed the random number generator
+  luaL_dostring(L, ("math.randomseed(" + String(random(1000000)) + ")").c_str());
+
   // Initialize LuaVGL
   luaL_requiref(L, "lvgl", luaopen_lvgl, 1);
   lua_pop(L, 1);
