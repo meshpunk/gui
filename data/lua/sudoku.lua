@@ -1,3 +1,93 @@
+print("Welcome to Sudoku!")
+
+-- root object
+local root = lvgl.Object()
+root:set { 
+    w = lvgl.HOR_RES(), 
+    h = lvgl.VER_RES(),
+    border_width = 0,
+    radius = 0,
+    pad_all = 0,
+    bg_color = "#aaaaaa"
+}
+root:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+-- generate random board
+-- local clues = ".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4....."
+
+local function solved (clues, remaining)
+    local function possibilities(board, index) 
+        local possibilities = {1, 2, 3, 4, 5, 6, 7, 8, 9}
+        print("check index: " .. index)
+        -- print("possibilities at start: " .. table.concat(possibilities, ","))
+
+        local row_index = math.floor((index - 1) / 9) + 1
+        for i = 1, 9 do 
+            local this_index = (row_index - 1) * 9 + i
+            local value = clues:sub(this_index, this_index)
+            if value ~= "." and possibilities[tonumber(value)] == tonumber(value) then
+                print("\tROW at index: " .. this_index)
+                print("\tremoving value: " .. value)
+                possibilities[tonumber(value)] = nil 
+            end
+        end
+
+        local col_index = (index - 1) % 9 + 1
+        for i = 1, 9 do 
+            local this_index = (i - 1) * 9 + col_index
+            local value = clues:sub(this_index, this_index)
+            if value ~= "." and possibilities[tonumber(value)] == tonumber(value) then 
+                print("\tCOL at index: " .. this_index)
+                print("\tremoving value: " .. value)
+                possibilities[tonumber(value)] = nil 
+            end
+        end
+
+        row_start = math.floor((row_index - 1) / 3) * 3
+        col_start = math.floor((col_index - 1) / 3) * 3
+        for i = 1, 3 do
+            for j = 1, 3 do
+                local this_index = (row_start - 1 + i) * 9 + (col_start + j)
+                local value = clues:sub(this_index, this_index)
+                if value ~= "." and possibilities[tonumber(value)] == tonumber(value) then 
+                    print("\tBOX at index: " .. this_index)
+                    print("\tremoving value: " .. value)
+                    possibilities[tonumber(value)] = nil 
+                end
+            end
+        end
+
+        local filtered_possibilities = {}
+        for i = 1, 9 do
+            if possibilities[i] then table.insert(filtered_possibilities, possibilities[i]) end
+        end
+        print("possibilities: " .. table.concat(filtered_possibilities, ","))
+        return filtered_possibilities
+    end
+
+    print("run possibilities")
+    possibilities(clues, 10)
+    return clues
+end
+
+local function generate_random_board ()
+    clues = {}
+
+    -- randomize order for first row to seed board
+    local remaining = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+    for i = 1, 9 do
+        local index = math.random(1, #remaining)
+        table.insert(clues, remaining[index])
+        table.remove(remaining, index)
+    end
+    for i = 1, 72 do table.insert(clues, ".") end
+    clues = table.concat(clues)
+    return solved(clues, 72)
+end
+
+local clues = generate_random_board()
+print("clues: " .. clues)
+
 -- keyboard numpad letters to numbers
 local capital_keys_map = {
     W = 1, E = 2, R = 3,
@@ -23,18 +113,8 @@ local third_size = math.floor((cell_size - 2) / 3)
 
 local reset
 
--- root object
-local root = lvgl.Object()
-root:set { 
-    w = lvgl.HOR_RES(), 
-    h = lvgl.VER_RES(),
-    border_width = 0,
-    radius = 0,
-    pad_all = 0,
-    bg_color = "#aaaaaa"
-}
-root:clear_flag(lvgl.FLAG.SCROLLABLE)
-
+-- board
+root:clean()
 local board = root:Object {
     w = board_size,
     h = board_size,
@@ -377,7 +457,7 @@ function reset(clues)
     for i, _ in ipairs(cells) do cells[i] = nil end
     reset_board(clues)
 end
-reset(".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4.....")
+reset(clues)
 
 print("random " .. math.random(100))
 -- reset("7351649284269783151985326742493817563872561495617498328526174939148235676734952..")
