@@ -1,5 +1,3 @@
-print("Welcome to Sudoku!")
-
 -- root object
 local root = lvgl.Object()
 root:set { 
@@ -35,10 +33,12 @@ local board_size = cell_size * 9
 local note_marker_size = math.floor((cell_size - 4) / 3)
 local third_size = math.floor((cell_size - 2) / 3)
 
+-- board
+local clues = ".5.21.74...4...8......6...1.3.62......7...6......59.3.7...8......6...3...42.31.5."
+local remaining
+local selected
 local reset
 
--- board
-root:clean()
 local board = root:Object {
     w = board_size,
     h = board_size,
@@ -62,11 +62,6 @@ board:clear_flag(lvgl.FLAG.SCROLLABLE)
 local group = lvgl.group.create()
 group:add_obj(board)
 group:set_default()
-
--- DYNAMIC DATA
--- board
-local remaining = 81
-local selected = 41
 
 local cells = {
     coordinates = function (self, index)
@@ -271,6 +266,10 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
                     cell:render_children()
                 end
             end
+
+            print("memory: " .. collectgarbage("count"))
+            collectgarbage("collect")
+            print("memory after: " .. collectgarbage("count"))
         end
         selected_cell:render_children()
         selected_cell:setSelected(true)
@@ -284,31 +283,36 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
             for i = 1, 9 do
                 local values = {}
                 for _, cell in ipairs(cells:row(i)) do
-                    if values[cell.value] then return end
+                    if cell.value == "." or values[cell.value] then return end
                     values[cell.value] = true
                 end
 
                 values = {}
                 for _, cell in ipairs(cells:col(i)) do
-                    if values[cell.value] then return end
+                    if cell.value == "." or values[cell.value] then return end
                     values[cell.value] = true
                 end
 
                 values = {}
                 local coords = cells:coordinates(i * 9)
                 for _, cell in ipairs(cells:box(coords.row, coords.col)) do
-                    if values[cell.value] then return end
+                    if cell.value == "." or values[cell.value] then return end
                     values[cell.value] = true
                 end
             end
             print("Sudoku solved")
-            reset(".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4.....")
+            reset(clues)
         end
     end
 end)
 
--- reset
-local function reset_board(clues)
+local function reset(with_clues)
+    assert(#with_clues == 81)
+    remaining = 81
+    for i = 1, #with_clues do if with_clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
+    selected = 41 
+    for i, _ in ipairs(cells) do cells[i] = nil end
+
     board:clean()
     for i = 0, 2 do 
         local subrow = board:Object {
@@ -326,7 +330,7 @@ local function reset_board(clues)
             pad_gap = 0,
         }
         subrow:clear_flag(lvgl.FLAG.SCROLLABLE)
-
+    
         for j = 0, 2 do
             local subcol = subrow:Object {
                 w = board_size / 3,
@@ -345,7 +349,7 @@ local function reset_board(clues)
                 }
             }
             subcol:clear_flag(lvgl.FLAG.SCROLLABLE)
-
+    
             for k = 0, 2 do
                 local row = subcol:Object {
                     w = board_size / 3,
@@ -361,24 +365,14 @@ local function reset_board(clues)
                     pad_all = 0,
                     pad_gap = 0,
                 }:clear_flag(lvgl.FLAG.SCROLLABLE)
-
+    
                 for l = 0, 2 do
                     local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
-                    cells[cell_index] = Cell:new(clues:sub(cell_index, cell_index), row)
+                    cells[cell_index] = Cell:new(with_clues:sub(cell_index, cell_index), row)
                 end
             end
         end
     end
     cells[selected].object:add_state(lvgl.STATE.EDITED)
 end
-
-function reset(clues) 
-    assert(#clues == 81)
-    remaining = 81
-    for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
-    
-    selected = 41 
-    for i, _ in ipairs(cells) do cells[i] = nil end
-    reset_board(clues)
-end
-reset(".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4.....")
+reset(clues)
