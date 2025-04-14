@@ -68,29 +68,6 @@ String readFile(const char *filename) {
   return content;
 }
 
-bool loadLuaScript(lua_State *L, const char *filename) {
-  String scriptPath = String(LUA_PATH) + filename;
-  String script = readFile(scriptPath.c_str());
-
-  if (script.length() == 0) {
-    Serial.print("Error loading Lua script: ");
-    Serial.println(scriptPath);
-    return false;
-  }
-
-  Serial.print("Executing Lua script: ");
-  Serial.println(scriptPath);
-
-  if (luaL_dostring(L, script.c_str()) != 0) {
-    Serial.print("Lua error: ");
-    Serial.println(lua_tostring(L, -1));
-    lua_pop(L, 1);
-    return false;
-  }
-
-  return true;
-}
-
 // LilyGo T-Deck control backlight chip has 16 levels of adjustment range
 // The adjustable range is 0~15, 0 is the minimum brightness, 15 is the maximum
 // brightness
@@ -535,59 +512,90 @@ void setupLuaVGL() {
 
   Serial.println("LuaVGL environment initialized");
 
-  // Load and run the main script
-  if (fs_mounted) {
-    // Try to load the fetch example app first
-    if (loadLuaScript(L, "main.lua")) {
-      Serial.println("WiFi Fetch example app loaded successfully");
-      // } else if (loadLuaScript(L, "messenger.lua")) {
-      //   Serial.println("Messenger app loaded successfully");
-    } else {
-      Serial.println("Failed to load apps, using fallback");
-
-      // Fallback to simple embedded script if the file isn't found
-      const char *fallbackScript = R"(
-        -- Fallback script when filesystem is not available
-        local root = lvgl.Object()
-        root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
-        
-        root:Label {
-          text = "Error in Lua code",
-          align = lvgl.ALIGN.CENTER
-        }
-        
-        return root
-      )";
-
-      if (luaL_dostring(L, fallbackScript) != 0) {
-        Serial.print("Fallback script error: ");
-        Serial.println(lua_tostring(L, -1));
-        lua_pop(L, 1);
-      }
-    }
-  } else {
+  if (!fs_mounted) {
     Serial.println("Filesystem not mounted, can't load Lua scripts");
 
-    // Simple fallback UI when no filesystem
     const char *fallbackScript = R"(
-      -- Fallback script when filesystem is not available
-      local root = lvgl.Object()
-      root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
-      
-      root:Label {
-        text = "Filesystem Error\nMake sure to upload data files",
-        align = lvgl.ALIGN.CENTER
-      }
-      
-      return root
-    )";
+    local root = lvgl.Object()
+    root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+
+    root:Label {
+      text = "Filesystem not mounted\nUpload Lua scripts to flash",
+      align = lvgl.ALIGN.CENTER
+    }
+
+    return root
+  )";
 
     if (luaL_dostring(L, fallbackScript) != 0) {
-      Serial.print("Fallback script error: ");
+      Serial.print("Lua fallback script error: ");
       Serial.println(lua_tostring(L, -1));
       lua_pop(L, 1);
     }
+
+    return;
   }
+
+  String scriptPath = String(LUA_PATH) + "main.lua";
+  String script = readFile(scriptPath.c_str());
+
+  if (script.length() == 0) {
+    Serial.print("Lua script not found: ");
+    Serial.println(scriptPath);
+
+    const char *fallbackScript = R"(
+    local root = lvgl.Object()
+    root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+
+    root:Label {
+      text = "Lua script missing",
+      align = lvgl.ALIGN.CENTER
+    }
+
+    return root
+  )";
+
+    luaL_dostring(L, fallbackScript); // no need to recheck error here
+    return;
+  }
+
+  Serial.print("Executing Lua script: ");
+  Serial.println(scriptPath);
+
+  if (luaL_dostring(L, script.c_str()) != 0) {
+    const char *luaError = lua_tostring(L, -1);
+    Serial.print("Lua execution error: ");
+    Serial.println(luaError);
+
+    // Escape any embedded quotes or newlines
+    String escapedError = String(luaError);
+    escapedError.replace("\\", "\\\\");
+    escapedError.replace("\"", "\\\"");
+    escapedError.replace("\n", "\\n");
+
+    String fallbackScript = R"(
+    local root = lvgl.Object()
+    root:set { w = lvgl.HOR_RES(), h = lvgl.VER_RES() }
+
+    root:Label {
+      text = ")" + escapedError +
+                            R"(",
+      align = lvgl.ALIGN.CENTER
+    }
+
+    return root
+  )";
+
+    if (luaL_dostring(L, fallbackScript.c_str()) != 0) {
+      Serial.print("Fallback display error: ");
+      Serial.println(lua_tostring(L, -1));
+    }
+
+    lua_pop(L, 1);
+    return;
+  }
+
+  return;
 }
 
 void setup() {
