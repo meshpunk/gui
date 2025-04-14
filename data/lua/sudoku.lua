@@ -59,10 +59,6 @@ local board = root:Object {
 }
 board:clear_flag(lvgl.FLAG.SCROLLABLE)
 
-local group = lvgl.group.create()
-group:add_obj(board)
-group:set_default()
-
 local cells = {
     coordinates = function (self, index)
         return {
@@ -183,6 +179,10 @@ function Cell:new(value, obj_container)
 end
 
 -- Keyboard input
+local group = lvgl.group.create()
+group:add_obj(board)
+group:set_default()
+
 local keyboard = lvgl.indev.get_next()
 if not keyboard then error("No keyboard input device found") end
 keyboard:set_group(group)
@@ -267,9 +267,11 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
                 end
             end
 
-            print("memory: " .. collectgarbage("count"))
-            collectgarbage("collect")
-            print("memory after: " .. collectgarbage("count"))
+            if (remaining % 10 == 0) then
+                print("memory: " .. collectgarbage("count"))
+                collectgarbage("collect")
+                print("memory after: " .. collectgarbage("count"))
+            end
         end
         selected_cell:render_children()
         selected_cell:setSelected(true)
@@ -306,7 +308,8 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     end
 end)
 
-local function reset(with_clues)
+-- (re)set the board
+reset = function (with_clues)
     assert(#with_clues == 81)
     remaining = 81
     for i = 1, #with_clues do if with_clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
