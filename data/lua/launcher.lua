@@ -3,7 +3,7 @@
 ]]
 
 local lvgl = require("lvgl")
-local toml = require("toml")
+local toml = require("lib/toml")
 
 -- Constants for grid layout
 local GRID_COLS = 4
@@ -12,30 +12,36 @@ local ICON_SIZE = 64
 local PADDING = 10
 
 local function create_launcher(parent)
-    local container = lvgl.obj(parent)
-    container:set_size("100%", "100%")
+
+    local root = lvgl.Object {
+        flex = {
+            flex_direction = "row",
+            flex_wrap = "wrap",
+            justify_content = "center",
+            align_items = "center",
+            align_content = "center",
+        },
+        w = 300,
+        h = 75,
+        align = lvgl.ALIGN.CENTER
+    }
     
-    -- Create a grid layout
-    local grid = lvgl.grid_create(container)
-    container:set_layout(lvgl.GRID_LAYOUT)
+    for i = 1, 10 do
+        local item = root:Object {
+            w = 100,
+            h = lvgl.PCT(100),
+        }
+        item:clear_flag(lvgl.FLAG.SCROLLABLE)
     
-    -- Configure grid
-    local col_dsc = {}
-    for i = 1, GRID_COLS do
-        table.insert(col_dsc, ICON_SIZE)
-        table.insert(col_dsc, PADDING)
+        local label = item:Label {
+            text = string.format("label %d", i)
+        }
+        label:center()
     end
     
-    local row_dsc = {}
-    for i = 1, GRID_ROWS do
-        table.insert(row_dsc, ICON_SIZE + 20)  -- Extra space for label
-        table.insert(row_dsc, PADDING)
-    end
-    
-    container:set_grid_dsc_array(col_dsc, row_dsc)
     
     -- Load apps from TOML
-    local file = io.open("apps.toml", "r")
+    local file = io.open("/lua/apps.toml", "r")
     if not file then
         error("Could not find apps.toml")
     end
@@ -45,44 +51,15 @@ local function create_launcher(parent)
     -- Create app buttons
     local index = 0
     for name, app in pairs(apps) do
-        if index < (GRID_COLS * GRID_ROWS) then
-            local col = index % GRID_COLS
-            local row = math.floor(index / GRID_COLS)
-            
-            -- Create button container
-            local btn = lvgl.btn(container)
-            btn:set_grid_cell(col * 2, 1, row * 2, 1)
-            
-            -- Create vertical layout for icon and label
-            local layout = lvgl.flex_create(btn)
-            btn:set_layout(lvgl.FLEX_LAYOUT)
-            btn:set_flex_flow(lvgl.FLEX_FLOW.COLUMN)
-            btn:set_flex_align(lvgl.FLEX_ALIGN.CENTER, lvgl.FLEX_ALIGN.CENTER, lvgl.FLEX_ALIGN.CENTER)
-            
-            -- Add icon if specified
-            if app.icon then
-                local img = lvgl.img(btn)
-                img:set_src(app.icon)
-                img:set_size(ICON_SIZE, ICON_SIZE)
-            end
-            
-            -- Add label
-            local label = lvgl.label(btn)
-            label:set_text(name)
-            
-            -- Add click handler
-            if app.command then
-                btn:add_event_cb(function()
-                    -- Execute app command
-                    os.execute(app.command)
-                end, lvgl.EVENT.CLICKED, nil)
-            end
-            
-            index = index + 1
-        end
+        local item = root:Object {
+            w = 100,
+            h = lvgl.PCT(100),
+        }
+        item:clear_flag(lvgl.FLAG.SCROLLABLE)
+        
     end
     
-    return container
+    return root
 end
 
 return {
