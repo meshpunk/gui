@@ -2,11 +2,6 @@
 local wifi = require("wifi")
 local utils = require("utils")
 
--- Create main UI
--- local root = lvgl.Object()
--- root:set{w = lvgl.HOR_RES(), h = lvgl.VER_RES()}
--- root:clear_flag(lvgl.FLAG.SCROLLABLE)
-
 local root = lvgl.Object {
   flex = {
       flex_direction = "row",
@@ -85,8 +80,8 @@ connect_btn:onClicked(function()
   end
   
   -- Show WiFi connection dialog
-  local ssid = "wiwi" -- Replace with your WiFi network name
-  local password = "snowcrash" -- Replace with your WiFi password
+  local ssid = "" -- Replace with your WiFi network name
+  local password = "" -- Replace with your WiFi password
   
   -- Change button state
   connect_btn:add_state(lvgl.STATE.DISABLED)
@@ -96,12 +91,9 @@ connect_btn:onClicked(function()
   connect_co = wifi.connect(ssid, password)
   
   -- Start timer to process coroutine
-  -- if timer then timer:delete() end
-  
   timer = lvgl.Timer {
     period = 100,
     cb = function(t)
-      
       if connect_co then
         local success, result = wifi.resume(connect_co)
         
