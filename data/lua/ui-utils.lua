@@ -1,5 +1,6 @@
 local M = {}
 
+-- Propagate a state to all children of an object
 -- obj: lvgl object
 -- state: lvgl state
 -- add: boolean, whether to add or clear the state

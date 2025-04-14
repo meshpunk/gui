@@ -1,3 +1,5 @@
+local fetch_clues = require("apps/sudoku/fetch_clues")
+
 -- root object
 local root = lvgl.Object()
 root:set { 
@@ -34,7 +36,6 @@ local note_marker_size = math.floor((cell_size - 4) / 3)
 local third_size = math.floor((cell_size - 2) / 3)
 
 -- board
-local clues = ".5.21.74...4...8......6...1.3.62......7...6......59.3.7...8......6...3...42.31.5."
 local remaining
 local selected
 local reset
@@ -303,16 +304,17 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
                 end
             end
             print("Sudoku solved")
-            reset(clues)
+            fetch_clues(reset)
         end
     end
 end)
 
 -- (re)set the board
-reset = function (with_clues)
-    assert(#with_clues == 81)
+reset = function (clues)
+    print("clues " .. clues)
+    assert(#clues == 81)
     remaining = 81
-    for i = 1, #with_clues do if with_clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
+    for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
     selected = 41 
     for i, _ in ipairs(cells) do cells[i] = nil end
 
@@ -371,11 +373,12 @@ reset = function (with_clues)
     
                 for l = 0, 2 do
                     local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
-                    cells[cell_index] = Cell:new(with_clues:sub(cell_index, cell_index), row)
+                    cells[cell_index] = Cell:new(clues:sub(cell_index, cell_index), row)
                 end
             end
         end
     end
     cells[selected].object:add_state(lvgl.STATE.EDITED)
 end
-reset(clues)
+
+fetch_clues(reset)
