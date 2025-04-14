@@ -1,9 +1,23 @@
 local wifi = require("wifi")
+local json = require("json")
 
 -- Coroutines for async operations
 
 local ssid = "takiwa"
 local password = "kupuhuna"
+
+function parse_clues(fetched)
+    local parsed = json.parse(fetched)
+    print("Difficulty: " .. parsed.newboard.grids[1].difficulty)
+    fetched = parsed.newboard.grids[1].value
+    local clues = {}
+    for _, row in ipairs(fetched) do
+        for _, cell in ipairs(row) do
+            table.insert(clues, cell ~= 0 and cell or ".")
+        end
+    end
+    return table.concat(clues)
+end
 
 return function(callback)
     print("fetch_clues")
@@ -44,10 +58,8 @@ return function(callback)
                 timer:pause()
                 timer:delete()
 
-                print("clues " .. clues)
-
-                callback(".5.21.74...4...8......6...1.3.62......7...6......59.3.7...8......6...3...42.31.5.")
-                -- callback(clues or ".5.21.74...4...8......6...1.3.62......7...6......59.3.7...8......6...3...42.31.5.")
+                local clues = parse_clues(clues)
+                callback(clues)
             end
         end
     }
