@@ -538,7 +538,7 @@ void setupLuaVGL() {
   // Load and run the main script
   if (fs_mounted) {
     // Try to load the fetch example app first
-    if (loadLuaScript(L, "fetch_example.lua")) {
+    if (loadLuaScript(L, "main.lua")) {
       Serial.println("WiFi Fetch example app loaded successfully");
       // } else if (loadLuaScript(L, "messenger.lua")) {
       //   Serial.println("Messenger app loaded successfully");

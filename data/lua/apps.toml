@@ -1,0 +1,7 @@
+[reader]
+icon = "/apps/reader/icon.png"
+entry = "/apps/reader/main.lua"
+
+[messenger]
+icon = "/apps/messenger/icon.png"
+entry = "/apps/messenger/main.lua"
