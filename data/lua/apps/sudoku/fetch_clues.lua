@@ -19,48 +19,54 @@ function parse_clues(fetched)
     return table.concat(clues)
 end
 
-return function(callback)
-    print("fetch_clues")
-    local connect_co = wifi.connect(ssid, password)
-    local fetch_co
-    local clues
-    local timer
+function fetch_clues(callback)
+    local fetch_co = wifi.fetch("https://sudoku-api.vercel.app/api/dosuku")
 
     timer = lvgl.Timer {
         period = 100,
         cb = function(t)
-            print("Timer callback")
-            if connect_co then
-                local success, result = wifi.resume(connect_co)
-                
-                if not success then
-                    print("Error: " .. tostring(result))
-                    connect_co = nil
-                    timer:delete()
-                    timer = nil
-                    return
-                end
-                
-                if result == true then
-                    connect_co = nil
-                    fetch_co = wifi.fetch("https://sudoku-api.vercel.app/api/dosuku")
-                end
-            elseif fetch_co then
-                local success, result = wifi.resume(fetch_co)
-                -- Fetch completed or error
-                if not success or result then
-                    if success and result.success then clues = result.body
-                    else print("Fetch error: " .. result.error) end
-                    fetch_co = nil
-                end
-            else 
-                if (wifi.isConnected()) then wifi.disconnect() end
-                timer:pause()
+            if not fetch_co then return end
+            local success, result = wifi.resume(fetch_co)
+        
+            if not success then 
+                error("Error fetching clues: " .. (result.error or "Unknown error"))
+            elseif result and result.success then
+                wifi.disconnect()
+                fetch_co = nil
                 timer:delete()
-
-                local clues = parse_clues(clues)
-                callback(clues)
+                timer = nil
+    
+                callback(parse_clues(result.body))
             end
         end
     }
+end
+
+function connect_wifi(result_callback)
+    local connect_co = wifi.connect(ssid, password)
+
+    timer = lvgl.Timer {
+        period = 100,
+        cb = function(t)
+            if not connect_co then return end
+    
+            local success, result = wifi.resume(connect_co)
+            
+            if not success then
+                connect_co = nil
+                error("Error connecting to WiFi: " .. tostring(result))
+            end
+            
+            if result == true then
+                connect_co = nil
+                fetch_clues(result_callback)
+            end
+        end
+    }
+end
+
+return function(result_callback)
+    print("fetch_clues")
+    assert (not wifi.isConnected(), "WiFi already connected")
+    connect_wifi(result_callback)
 end

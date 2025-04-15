@@ -192,8 +192,13 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     if not indev then return end
 
     local key = string.char(indev:get_key()) 
-    local selected_cell = cells[selected]
 
+    if key == "P" then
+        fetch_clues(reset)
+        return
+    end
+
+    local selected_cell = cells[selected]
     if key == "i" or key == "j" or key == "k" or key == "l" then
         selected_cell:setSelected(false)
 
@@ -311,6 +316,7 @@ end)
 
 -- (re)set the board
 reset = function (clues)
+    collectgarbage("collect")
     print("clues " .. clues)
     assert(#clues == 81)
     remaining = 81
