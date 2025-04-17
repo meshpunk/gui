@@ -384,7 +384,7 @@ reset = function (clues)
             end
         end
     end
-    cells[selected].object:add_state(lvgl.STATE.EDITED)
+    cells[selected]:setSelected(true)
 end
 
 fetch_clues(reset)
