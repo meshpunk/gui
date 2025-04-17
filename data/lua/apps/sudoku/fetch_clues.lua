@@ -6,7 +6,7 @@ local json = require("json")
 local ssid = "takiwa"
 local password = "kupuhuna"
 
-function parse_clues(fetched)
+function parse_clues(fetched, difficulty_label)
     local parsed = json.parse(fetched)
     print("Difficulty: " .. parsed.newboard.grids[1].difficulty)
     fetched = parsed.newboard.grids[1].value
@@ -16,10 +16,11 @@ function parse_clues(fetched)
             table.insert(clues, cell ~= 0 and cell or ".")
         end
     end
+    difficulty_label.text = parsed.newboard.grids[1].difficulty
     return table.concat(clues)
 end
 
-function fetch_clues(callback)
+function fetch_clues(callback, difficulty_label)
     local fetch_co = wifi.fetch("https://sudoku-api.vercel.app/api/dosuku")
 
     timer = lvgl.Timer {
@@ -36,13 +37,13 @@ function fetch_clues(callback)
                 timer:delete()
                 timer = nil
     
-                callback(parse_clues(result.body))
+                callback(parse_clues(result.body, difficulty_label))
             end
         end
     }
 end
 
-function connect_wifi(result_callback)
+function connect_wifi(result_callback, difficulty_label)
     local connect_co = wifi.connect(ssid, password)
 
     timer = lvgl.Timer {
@@ -59,14 +60,14 @@ function connect_wifi(result_callback)
             
             if result == true then
                 connect_co = nil
-                fetch_clues(result_callback)
+                fetch_clues(result_callback, difficulty_label)
             end
         end
     }
 end
 
-return function(result_callback)
+return function(result_callback, difficulty_label)
     print("fetch_clues")
     assert (not wifi.isConnected(), "WiFi already connected")
-    connect_wifi(result_callback)
+    connect_wifi(result_callback, difficulty_label)
 end

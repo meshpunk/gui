@@ -34,6 +34,8 @@ local cell_size = math.floor((lvgl.VER_RES()  - 20 ) / 9) -- closest multiple of
 local board_size = cell_size * 9
 local note_marker_size = math.floor((cell_size - 4) / 3)
 local third_size = math.floor((cell_size - 2) / 3)
+local board_top_pad = math.floor((lvgl.VER_RES() - board_size) / 2)
+local board_side_pad = math.floor(lvgl.HOR_RES() - board_size - board_top_pad)
 
 -- board
 local remaining
@@ -43,13 +45,15 @@ local reset
 local board = root:Object {
     w = board_size,
     h = board_size,
+    x = board_top_pad,
+    y = board_top_pad,
     radius = 0,
     outline_width = 1,
     outline_pad = 0,
     border_width = 0,
     outline_color = "#000000",
     bg_color = "#ffffff",
-    align = lvgl.ALIGN.CENTER,
+    align = lvgl.ALIGN.TOP_LEFT,
     pad_all = 0,
     pad_gap = 0,
     flex = {
@@ -57,9 +61,47 @@ local board = root:Object {
         justify_content = "center",
         align_items = "center",
     }
-}
-board:clear_flag(lvgl.FLAG.SCROLLABLE)
+}:clear_flag(lvgl.FLAG.SCROLLABLE)
 
+-- difficulty label
+local difficulty_label = root:Label {
+    x = board_top_pad * 2 + board_size,
+    y = board_top_pad * 2 + 40,
+    text_color = "#ffffff",
+    align = lvgl.ALIGN.TOP_LEFT,
+}
+
+-- reset button
+local reset_btn = root:Object {
+    w = board_side_pad - (board_top_pad * 2),
+    h = 40,
+    x = -board_top_pad,
+    y = board_top_pad,
+    bg_color = "#ffffff",
+    border_width = 1,
+    border_color = "#000000",
+    radius = 0,
+    text = "Reset",
+    align = lvgl.ALIGN.TOP_RIGHT,
+    margin_top = 10,
+    margin_right = 10,
+}:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+reset_btn:add_style(lvgl.Style {
+    bg_color = "#82b5c2",
+    border_color = "#588bb8",
+}, lvgl.STATE.PRESSED)
+
+reset_btn:Label {
+    text = "Reset",
+    align = lvgl.ALIGN.CENTER,
+}
+
+reset_btn:onClicked(function()
+    fetch_clues(reset, difficulty_label)
+end)
+
+-- cells
 local cells = {
     coordinates = function (self, index)
         return {
@@ -194,7 +236,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     local key = string.char(indev:get_key()) 
 
     if key == "P" then
-        fetch_clues(reset)
+        fetch_clues(reset, difficulty_label)
         return
     end
 
@@ -309,7 +351,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
                 end
             end
             print("Sudoku solved")
-            fetch_clues(reset)
+            fetch_clues(reset, difficulty_label)
         end
     end
 end)
@@ -387,4 +429,4 @@ reset = function (clues)
     cells[selected]:setSelected(true)
 end
 
-fetch_clues(reset)
+fetch_clues(reset, difficulty_label)
