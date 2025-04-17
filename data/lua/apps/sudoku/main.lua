@@ -98,7 +98,7 @@ reset_btn:Label {
 }
 
 reset_btn:onClicked(function()
-    fetch_clues(reset, difficulty_label)
+    reset()
 end)
 
 -- cells
@@ -236,7 +236,7 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
     local key = string.char(indev:get_key()) 
 
     if key == "P" then
-        fetch_clues(reset, difficulty_label)
+        reset()
         return
     end
 
@@ -351,82 +351,87 @@ board:onevent(lvgl.EVENT.KEY, function(obj, code)
                 end
             end
             print("Sudoku solved")
-            fetch_clues(reset, difficulty_label)
+            reset()
         end
     end
 end)
 
 -- (re)set the board
-reset = function (clues)
-    collectgarbage("collect")
-    print("clues " .. clues)
-    assert(#clues == 81)
-    remaining = 81
-    for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
-    selected = 41 
-    for i, _ in ipairs(cells) do cells[i] = nil end
-
+reset = function ()
+    -- clear old stuff
     board:clean()
-    for i = 0, 2 do 
-        local subrow = board:Object {
-            w = board_size,
-            h = math.floor(board_size / 3),
-            bg_color = "#dddddd",
-            border_width = 0,
-            radius = 0,
-            flex = {
-                flex_direction = "row",
-                justify_content = "center",
-                align_items = "center",
-            },
-            pad_all = 0,
-            pad_gap = 0,
-        }
-        subrow:clear_flag(lvgl.FLAG.SCROLLABLE)
-    
-        for j = 0, 2 do
-            local subcol = subrow:Object {
-                w = board_size / 3,
-                h = board_size / 3,
-                bg_color = "#ffffff",
-                border_width = 1,
-                border_color = "#000000",
+    difficulty_label.text = ""
+    for i, _ in ipairs(cells) do cells[i] = nil end
+    collectgarbage("collect")
+
+    fetch_clues(function (clues) 
+        print("clues " .. clues)
+        assert(#clues == 81)
+        remaining = 81
+        for i = 1, #clues do if clues:sub(i, i) ~= "." then remaining = remaining - 1 end end
+        selected = 41 
+        
+        for i = 0, 2 do 
+            local subrow = board:Object {
+                w = board_size,
+                h = math.floor(board_size / 3),
+                bg_color = "#dddddd",
+                border_width = 0,
                 radius = 0,
-                align = lvgl.ALIGN.CENTER,
-                pad_all = 0,
-                pad_gap = 0,
                 flex = {
-                    flex_direction = "column",
+                    flex_direction = "row",
                     justify_content = "center",
                     align_items = "center",
-                }
+                },
+                pad_all = 0,
+                pad_gap = 0,
             }
-            subcol:clear_flag(lvgl.FLAG.SCROLLABLE)
-    
-            for k = 0, 2 do
-                local row = subcol:Object {
+            subrow:clear_flag(lvgl.FLAG.SCROLLABLE)
+        
+            for j = 0, 2 do
+                local subcol = subrow:Object {
                     w = board_size / 3,
-                    h = board_size / 9,
+                    h = board_size / 3,
                     bg_color = "#ffffff",
-                    border_width = 0,
+                    border_width = 1,
+                    border_color = "#000000",
                     radius = 0,
-                    flex = {
-                        flex_direction = "row",
-                        justify_content = "center",
-                        align_items = "center",
-                    },
+                    align = lvgl.ALIGN.CENTER,
                     pad_all = 0,
                     pad_gap = 0,
-                }:clear_flag(lvgl.FLAG.SCROLLABLE)
-    
-                for l = 0, 2 do
-                    local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
-                    cells[cell_index] = Cell:new(clues:sub(cell_index, cell_index), row)
+                    flex = {
+                        flex_direction = "column",
+                        justify_content = "center",
+                        align_items = "center",
+                    }
+                }
+                subcol:clear_flag(lvgl.FLAG.SCROLLABLE)
+        
+                for k = 0, 2 do
+                    local row = subcol:Object {
+                        w = board_size / 3,
+                        h = board_size / 9,
+                        bg_color = "#ffffff",
+                        border_width = 0,
+                        radius = 0,
+                        flex = {
+                            flex_direction = "row",
+                            justify_content = "center",
+                            align_items = "center",
+                        },
+                        pad_all = 0,
+                        pad_gap = 0,
+                    }:clear_flag(lvgl.FLAG.SCROLLABLE)
+        
+                    for l = 0, 2 do
+                        local cell_index = (i * 3 + k) * 9 + (j * 3 + l) + 1
+                        cells[cell_index] = Cell:new(clues:sub(cell_index, cell_index), row)
+                    end
                 end
             end
         end
-    end
-    cells[selected]:setSelected(true)
+        cells[selected]:setSelected(true)
+    end, difficulty_label)
 end
 
-fetch_clues(reset, difficulty_label)
+reset()
