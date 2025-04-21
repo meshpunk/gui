@@ -90,50 +90,54 @@ connect_btn:onClicked(function()
   -- Create connection coroutine
   connect_co = wifi.connect(ssid, password)
   
+  local callback = function(t)
+    if connect_co then
+      local success, result = wifi.resume(connect_co)
+      
+      if not success then
+        status_label.text = "Error: " .. tostring(result)
+        connect_btn:clear_state(lvgl.STATE.DISABLED)
+        connect_co = nil
+        return
+      end
+      
+      if result == true then
+        -- Connected successfully
+        status_label.text = "WiFi connected!"
+        connect_btn:clear_state(lvgl.STATE.DISABLED)
+        connect_btn:Label().text = "Disconnect WiFi"
+        fetch_btn:clear_state(lvgl.STATE.DISABLED)
+        connect_co = nil
+      end
+    elseif fetch_co then
+      local success, result = wifi.resume(fetch_co)
+      
+      if not success or result then
+        -- Fetch completed or error
+        fetch_btn:clear_state(lvgl.STATE.DISABLED)
+        
+        if success and result.success then
+          results_label.text = result.body:sub(1, 1000) .. "..."
+        else
+          results_label.text = "Fetch error: " ..
+          (result.error or
+          "Unknown error")
+        end
+        
+        fetch_co = nil
+      end
+    else
+      -- No active coroutines, stop timer
+      timer:delete()
+      timer = nil
+    end
+  end
+
   -- Start timer to process coroutine
   timer = lvgl.Timer {
     period = 100,
     cb = function(t)
-      if connect_co then
-        local success, result = wifi.resume(connect_co)
-        
-        if not success then
-          status_label.text = "Error: " .. tostring(result)
-          connect_btn:clear_state(lvgl.STATE.DISABLED)
-          connect_co = nil
-          return
-        end
-        
-        if result == true then
-          -- Connected successfully
-          status_label.text = "WiFi connected!"
-          connect_btn:clear_state(lvgl.STATE.DISABLED)
-          connect_btn:Label().text = "Disconnect WiFi"
-          fetch_btn:clear_state(lvgl.STATE.DISABLED)
-          connect_co = nil
-        end
-      elseif fetch_co then
-        local success, result = wifi.resume(fetch_co)
-        
-        if not success or result then
-          -- Fetch completed or error
-          fetch_btn:clear_state(lvgl.STATE.DISABLED)
-          
-          if success and result.success then
-            results_label.text = result.body:sub(1, 1000) .. "..."
-          else
-            results_label.text = "Fetch error: " ..
-            (result.error or
-            "Unknown error")
-          end
-          
-          fetch_co = nil
-        end
-      else
-        -- No active coroutines, stop timer
-        timer:delete()
-        timer = nil
-      end
+      callback(t)
     end
   }
 end)

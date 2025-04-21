@@ -459,6 +459,9 @@ void setupLuaVGL() {
   // Open standard Lua libraries
   luaL_openlibs(L);
 
+  // Seed the random number generator
+  luaL_dostring(L, ("math.randomseed(" + String(random(1000000)) + ")").c_str());
+
   // Initialize LuaVGL
   luaL_requiref(L, "lvgl", luaopen_lvgl, 1);
   lua_pop(L, 1);
@@ -516,14 +519,12 @@ void setupLuaVGL() {
 
   // Load and run the main script
   if (fs_mounted) {
-    // Try to load the fetch example app first
-    if (loadLuaScript(L, "fetch_example.lua")) {
-      Serial.println("WiFi Fetch example app loaded successfully");
-      // } else if (loadLuaScript(L, "messenger.lua")) {
-      //   Serial.println("Messenger app loaded successfully");
+    const char *script = "apps/sudoku/main.lua";
+    if (loadLuaScript(L, script)) {
+      Serial.println(String(script) + " loaded successfully");
     } else {
-      Serial.println("Failed to load apps, using fallback");
-
+      Serial.println("Failed to load " + String(script) + ", using fallback");
+      
       // Fallback to simple embedded script if the file isn't found
       const char *fallbackScript = R"(
         -- Fallback script when filesystem is not available
