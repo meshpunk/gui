@@ -1,3 +1,5 @@
+local ui_utils = require("ui-utils")
+
 -- root object
 local root = lvgl.Object()
 root:set { 
@@ -16,8 +18,8 @@ local BORDER_SIZE = (lvgl.VER_RES() - CANVAS_SIZE) / 2
 local SIDEBAR_SIZE = (lvgl.HOR_RES() - CANVAS_SIZE) / 2 - BORDER_SIZE * 2
 
 local pixels = {}
-local colours = { "#211e20", "#555568", "#a0a08b", "#e9efec"}
-local current_colour = colours[1]
+local colours = { "#211e20", "#555568", "#a0a08b", "#e9efec" }
+local current_colour = 1
 
 local palette = root:Object {
     w = SIDEBAR_SIZE,
@@ -47,8 +49,19 @@ for i, colour in ipairs(colours) do
         border_width = 0,
     }
     btn:onClicked(function()
-        current_colour = colour
+        current_colour = i
+        ui_utils.propagate_state(palette, lvgl.STATE.CHECKED, false)
+        btn:add_state(lvgl.STATE.CHECKED)
     end)
+    btn:add_style(lvgl.Style {
+        border_color = "#ffffff",
+        border_width = 1,
+        bg_color = colour,
+    }, lvgl.STATE.CHECKED)
+
+    if i == current_colour then
+        btn:add_state(lvgl.STATE.CHECKED)
+    end
 end
 
 local canvas = root:Object {
@@ -65,7 +78,7 @@ local canvas = root:Object {
 
 for i = 1, dimension do
     for j = 1, dimension do
-        local btn = canvas:Button {
+        local btn = canvas:Object {
             w = PIXEL_SIZE,
             h = PIXEL_SIZE,
             bg_color = colours[1],
@@ -74,7 +87,8 @@ for i = 1, dimension do
             x = (i - 1) * PIXEL_SIZE,
             y = (j - 1) * PIXEL_SIZE,
         }
+        btn:add_flag(lvgl.FLAG.CLICKABLE)
         btn:clear_flag(lvgl.FLAG.SCROLLABLE)
-        btn:onClicked(function() btn.bg_color = current_colour end)
+        btn:onClicked(function() btn.bg_color = colours[current_colour] end)
     end
 end
