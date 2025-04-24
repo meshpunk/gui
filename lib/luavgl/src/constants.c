@@ -1,5 +1,5 @@
-
 #include <lvgl.h>
+#include "luavgl.h"
 
 #include "rotable.h"
 
@@ -607,6 +607,14 @@ static int luavgl_LV_VER_RES(lua_State *L)
   return 1;
 }
 
+/* New function to convert Lua color representation to integer */
+static int luavgl_color_to_int(lua_State *L)
+{
+  lv_color_t color = luavgl_tocolor(L, 1); /* Get color from 1st argument */
+  lua_pushinteger(L, lv_color_to_int(color)); /* Push the integer representation */
+  return 1; /* One return value */
+}
+
 /* clang-format on */
 
 static void luavgl_constants_init(lua_State *L)
@@ -646,6 +654,10 @@ static void luavgl_constants_init(lua_State *L)
 
   lua_pushcfunction(L, luavgl_LV_PCT);
   lua_setfield(L, -2, "PCT");
+
+  /* Register the new color conversion function */
+  lua_pushcfunction(L, luavgl_color_to_int);
+  lua_setfield(L, -2, "color_to_int");
 
   lua_pushinteger(L, LV_SIZE_CONTENT);
   lua_setfield(L, -2, "SIZE_CONTENT");
