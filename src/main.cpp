@@ -519,7 +519,7 @@ void setupLuaVGL() {
 
   // Load and run the main script
   if (fs_mounted) {
-    const char *script = "apps/sudoku/main.lua";
+    const char *script = "apps/paint/main.lua";
     if (loadLuaScript(L, script)) {
       Serial.println(String(script) + " loaded successfully");
     } else {
