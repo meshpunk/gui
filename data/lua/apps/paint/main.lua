@@ -31,6 +31,8 @@ local SIDEBAR_SIZE = (lvgl.HOR_RES() - CANVAS_SIZE) / 2 - BORDER_SIZE * 2
 
 local current_colour = 1
 
+-- palette buttons
+
 local palette = root:Object {
     w = SIDEBAR_SIZE,
     h = CANVAS_SIZE,
@@ -59,10 +61,12 @@ for i, colour in ipairs(COLORS) do
         border_width = 0,
     }
     btn:onClicked(function()
+        if current_colour == i then return end
         current_colour = i
         ui_utils.propagate_state(palette, lvgl.STATE.CHECKED, false)
         btn:add_state(lvgl.STATE.CHECKED)
     end)
+
     btn:add_style(lvgl.Style {
         border_color = "#ffffff",
         border_width = 1,
@@ -74,18 +78,23 @@ for i, colour in ipairs(COLORS) do
     end
 end
 
+-- preview in the corner
+
 local preview = root:Object {
     w = image.size * 2,
     h = image.size * 2,
+    x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE,
+    y = BORDER_SIZE,
+    outline_color = "#000000",
+    outline_width = 1,
     bg_color = "#ffffff",
     radius = 0,
     border_width = 0,
     pad_all = 0,
-    x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE,
-    y = BORDER_SIZE,
 }:clear_flag(lvgl.FLAG.SCROLLABLE)
-
 image:draw(preview)
+
+-- canvas for actually editing the image
 
 local canvas = root:Object {
     w = CANVAS_SIZE,
@@ -113,6 +122,8 @@ for i = 1, image.size do
         btn:add_flag(lvgl.FLAG.CLICKABLE)
         btn:clear_flag(lvgl.FLAG.SCROLLABLE)
         btn:onClicked(function() 
+            if image.data[j + (i - 1) * image.size] == COLORS[current_colour] then return end
+
             image.data[j + (i - 1) * image.size] = COLORS[current_colour] 
             btn.bg_color = COLORS[current_colour] 
 
