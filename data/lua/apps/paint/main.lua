@@ -13,16 +13,13 @@ root:set {
 
 local COLORS = { "#211e20", "#555568", "#a0a08b", "#e9efec" }
 
-local size = 8
-local data = {}
-for i = 1, size * size do
-    data[i] = COLORS[1]
-end
-
 local image = require("apps/paint/image"):new {
-    size = size,
-    data = data
+    size = 8,
+    data = {}
 }
+for i = 1, image.size * image.size do
+    image.data[i] = COLORS[1]
+end
 
 local PIXEL_SIZE = math.floor(lvgl.VER_RES() / (image.size + 1))
 local CANVAS_SIZE = PIXEL_SIZE * image.size
