@@ -1,8 +1,14 @@
 local Image = {}
 
 function Image:new(image)
-    assert (type(image.size) == "number", "Image size must be a number")
-    assert (type(image.data) == "table", "Image data must be a table")
+    assert(type(image.size) == "number", "Image size must be a number")
+    assert(type(image.palette) == "table", "Image palette must be a table")
+    assert(type(image.data) == "string", "Image data must be a string")
+    assert(image.data:len() == image.size * image.size, "Image data must be the same size as the image")
+
+    for i = 1, image.size * image.size do
+        assert(image.palette[tonumber(image.data:sub(i, i))], "Image data must be a valid palette index (at " .. i .. ": " .. image.data:sub(i, i) .. ")")
+    end
 
     setmetatable(image, self)
     self.__index = self
@@ -20,17 +26,16 @@ function Image:draw(object)
 
     for i = 1, self.size do
         for j = 1, self.size do
-            if self.data[j + (i - 1) * self.size] then
-                object:Object {
-                    x = (i - 1) * scale,
-                    y = (j - 1) * scale,
-                    w = scale,
-                    h = scale,
-                    bg_color = self.data[j + (i - 1) * self.size],
-                    radius = 0,
-                    border_width = 0,
-                }:clear_flag(lvgl.FLAG.SCROLLABLE)
-            end
+            local index = j + (i - 1) * self.size
+            object:Object {
+                x = (i - 1) * scale,
+                y = (j - 1) * scale,
+                w = scale,
+                h = scale,
+                bg_color = self.palette[tonumber(self.data:sub(index, index))],
+                radius = 0,
+                border_width = 0,
+            }:clear_flag(lvgl.FLAG.SCROLLABLE)
         end
     end
 end

@@ -15,11 +15,9 @@ local COLORS = { "#211e20", "#555568", "#a0a08b", "#e9efec" }
 
 local image = require("apps/paint/image"):new {
     size = 8,
-    data = {}
+    palette = COLORS,
+    data = string.rep("1", 8 * 8)
 }
-for i = 1, image.size * image.size do
-    image.data[i] = COLORS[1]
-end
 
 local PIXEL_SIZE = math.floor(lvgl.VER_RES() / (image.size + 1))
 local CANVAS_SIZE = PIXEL_SIZE * image.size
@@ -119,9 +117,10 @@ for i = 1, image.size do
         btn:add_flag(lvgl.FLAG.CLICKABLE)
         btn:clear_flag(lvgl.FLAG.SCROLLABLE)
         btn:onClicked(function() 
-            if image.data[j + (i - 1) * image.size] == COLORS[current_colour] then return end
+            local index = j + (i - 1) * image.size
+            if image.data[index] == COLORS[current_colour] then return end
 
-            image.data[j + (i - 1) * image.size] = COLORS[current_colour] 
+            image.data = image.data:sub(1, index - 1) .. COLORS[current_colour] .. image.data:sub(index + 1)
             btn.bg_color = COLORS[current_colour] 
 
             -- luavgl indexing is 0 based, unlike everything else yay
