@@ -41,13 +41,81 @@ static const luavgl_table_t img_property_table = {
 static int luavgl_img_set_src(lua_State *L)
 {
   lv_obj_t *obj = luavgl_to_obj(L, 1);
-  const char *src = luavgl_toimgsrc(L, 2);
-  if (src != NULL) {
-    lv_image_set_src(obj, src);
-  }
 
-  return 0;
+  if (lua_type(L, 2) == LUA_TSTRING) {
+    const char *src = luavgl_toimgsrc(L, 2);
+    if (src != NULL) {
+      lv_image_set_src(obj, src);
+    }
+    return 0;
+  }
+  else if (lua_type(L, 2) == LUA_TTABLE) {
+    // Allocate new lv_img_dsc_t
+    lv_img_dsc_t *dsc = (lv_img_dsc_t *)lv_malloc(sizeof(lv_img_dsc_t));
+    if (!dsc) return luaL_error(L, "no memory");
+
+    // fill header fields
+    lua_getfield(L, 2, "header");
+    if (!lua_istable(L, -1)) return luaL_error(L, "header missing");
+
+    lua_getfield(L, -1, "w");
+    dsc->header.w = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "h");
+    dsc->header.h = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "cf");
+    dsc->header.cf = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    lua_pop(L, 1); // pop header table
+
+    // get data_size
+    lua_getfield(L, 2, "data_size");
+    dsc->data_size = lua_tointeger(L, -1);
+    lua_pop(L, 1);
+
+    // get data
+    // lua_getfield(L, 2, "data");
+    // size_t len = 0;
+    // const uint8_t *data = (const uint8_t *)lua_tolstring(L, -1, &len);
+    // if (data == NULL || len < dsc->data_size) {
+    //   return luaL_error(L, "invalid data field");
+    // }
+    // dsc->data = data;
+    // lua_pop(L, 1);
+
+    lua_getfield(L, 2, "data");
+    size_t len = 0;
+    const uint8_t *src_data = (const uint8_t *)lua_tolstring(L, -1, &len);
+    if (src_data == NULL || len < dsc->data_size) {
+        return luaL_error(L, "invalid data field");
+    }
+
+    // allocate a new buffer
+    uint8_t *copy = (uint8_t *)lv_malloc(dsc->data_size);
+    if (!copy) return luaL_error(L, "no memory for image data");
+
+    memcpy(copy, src_data, dsc->data_size);
+    dsc->data = copy; // now safe
+    lua_pop(L, 1);
+
+    // bind it
+    lv_image_set_src(obj, dsc);
+
+    // prevent GC of descriptor and pixel data
+    lua_pushvalue(L, 2); // push the image descriptor table
+    lua_setuservalue(L, 1); // set it as uservalue of the lvgl img object
+
+    return 0;
+  }
+  else {
+    return luaL_error(L, "invalid img src type");
+  }
 }
+
 
 /**
  * img:set_offset({x=10})

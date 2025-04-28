@@ -89,6 +89,22 @@ local preview = root:Object {
 }:clear_flag(lvgl.FLAG.SCROLLABLE)
 image:draw(preview)
 
+local preview2 = root:Image { 
+    w = image.size, 
+    h = image.size,
+    x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE,
+    y = BORDER_SIZE * 3,
+    outline_color = "#000000",
+    outline_width = 1,
+    src = image:to_lvgl_imgdesc()
+}
+-- preview2:clear_flag(lvgl.FLAG.HIDDEN)
+-- preview2:clear_flag(lvgl.FLAG.INVISIBLE)
+
+-- local imgdesc = image:to_lvgl_imgdesc()
+-- preview2:set_src(imgdesc)
+-- preview2._src = imgdesc -- stop GC
+
 -- canvas for actually editing the image
 
 local canvas = root:Object {
