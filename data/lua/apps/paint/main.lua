@@ -21,7 +21,7 @@ local image = require("apps/paint/image"):new {
 }
 
 -- Create TinyImage version
-local tiny_img = tinyimage:new(8, 8)
+local tiny_img = tinyimage:new({width = 8, height = 8, palette = COLORS})
 -- -- Initialize with same data as regular image
 -- for i = 1, 8 do
 --     for j = 1, 8 do

@@ -23,6 +23,10 @@ static int tinyimage_new(lua_State *L) {
     size_t size = sizeof(TinyImage) + (width * height + 1) / 2;  // +1/2 for rounding up
     TinyImage *img = (TinyImage *)lua_newuserdata(L, size);
     
+    // Set the metatable
+    luaL_getmetatable(L, "TinyImage");
+    lua_setmetatable(L, -2);
+    
     // Initialize the image
     img->width = width;
     img->height = height;
@@ -187,6 +191,10 @@ int luaopen_tinyimage(lua_State *L) {
     lua_setfield(L, -2, "__index");
     
     // Register methods
+    luaL_setfuncs(L, tinyimage_methods, 0);
+    
+    // Create the module table
+    lua_newtable(L);
     luaL_setfuncs(L, tinyimage_methods, 0);
     
     return 1;
