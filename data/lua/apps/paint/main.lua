@@ -1,4 +1,5 @@
 local ui_utils = require("ui-utils")
+local tinyimage = require("apps/paint/tinyimage")
 
 -- root object
 local root = lvgl.Object()
@@ -18,6 +19,17 @@ local image = require("apps/paint/image"):new {
     palette = COLORS,
     data = string.rep("1", 8 * 8)
 }
+
+-- Create TinyImage version
+local tiny_img = tinyimage:new(8, 8)
+-- -- Initialize with same data as regular image
+-- for i = 1, 8 do
+--     for j = 1, 8 do
+--         local index = j + (i - 1) * 8
+--         local color_index = tonumber(image.data:sub(index, index))
+--         tiny_img:set_pixel(i-1, j-1, color_index - 1)  -- TinyImage uses 0-based indices
+--     end
+-- end
 
 local PIXEL_SIZE = math.floor(lvgl.VER_RES() / (image.size + 1))
 local CANVAS_SIZE = PIXEL_SIZE * image.size
@@ -73,12 +85,12 @@ for i, colour in ipairs(COLORS) do
     end
 end
 
--- preview in the corner
+-- previews in the corner
 
 local preview = root:Object {
     w = image.size * 2,
     h = image.size * 2,
-    x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE,
+    x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE * 2,
     y = BORDER_SIZE,
     outline_color = "#000000",
     outline_width = 1,
@@ -88,6 +100,37 @@ local preview = root:Object {
     pad_all = 0,
 }:clear_flag(lvgl.FLAG.SCROLLABLE)
 image:draw(preview)
+
+-- TinyImage preview
+-- local tiny_preview = root:Object {
+--     w = image.size * 2,
+--     h = image.size * 2,
+--     x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE,
+--     y = BORDER_SIZE * 3,
+--     outline_color = "#000000",
+--     outline_width = 1,
+--     bg_color = "#ffffff",
+--     radius = 0,
+--     border_width = 0,
+--     pad_all = 0,
+-- }:clear_flag(lvgl.FLAG.SCROLLABLE)
+
+-- -- Draw TinyImage preview
+-- for i = 0, 7 do
+--     for j = 0, 7 do
+--         local color_index = tiny_img:get_pixel(i, j)
+--         local color = COLORS[color_index + 1]  -- Convert back to 1-based index
+--         tiny_preview:Object {
+--             w = 2,
+--             h = 2,
+--             x = i * 2,
+--             y = j * 2,
+--             bg_color = color,
+--             radius = 0,
+--             border_width = 0,
+--         }
+--     end
+-- end
 
 -- canvas for actually editing the image
 
@@ -123,8 +166,13 @@ for i = 1, image.size do
             image.data = image.data:sub(1, index - 1) .. COLORS[current_colour] .. image.data:sub(index + 1)
             btn.bg_color = COLORS[current_colour] 
 
-            -- luavgl indexing is 0 based, unlike everything else yay
+            -- Update both previews
             preview:get_child((j - 1) + (i - 1) * image.size).bg_color = COLORS[current_colour]
+            
+            -- -- Update TinyImage
+            -- tiny_img:set_pixel(i-1, j-1, current_colour - 1)  -- Convert to 0-based index
+            -- -- Update TinyImage preview
+            -- tiny_preview:get_child((j - 1) + (i - 1) * image.size).bg_color = COLORS[current_colour]
         end)
     end
 end

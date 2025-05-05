@@ -13,6 +13,7 @@ extern "C" {
 #include <lua.h>
 #include <lualib.h>
 #include <luavgl.h>
+#include "tinyimage.h"
 }
 
 #include <TFT_eSPI.h>
@@ -471,6 +472,10 @@ void setupLuaVGL() {
   lua_register(L, "_wifi_status", lua_wifi_status);
   lua_register(L, "_wifi_disconnect", lua_wifi_disconnect);
   lua_register(L, "_wifi_fetch", lua_wifi_fetch);
+
+  // Register TinyImage module
+  luaL_requiref(L, "tinyimage", luaopen_tinyimage, 1);
+  lua_pop(L, 1);
 
   // Add Lua loader for require function
   lua_getglobal(L, "package");
