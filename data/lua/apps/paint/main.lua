@@ -102,19 +102,19 @@ local preview = root:Object {
 image:draw(preview)
 
 -- TinyImage preview
--- local tiny_preview = root:Object {
---     w = image.size * 2,
---     h = image.size * 2,
---     x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE,
---     y = BORDER_SIZE * 3,
---     outline_color = "#000000",
---     outline_width = 1,
---     bg_color = "#ffffff",
---     radius = 0,
---     border_width = 0,
---     pad_all = 0,
--- }:clear_flag(lvgl.FLAG.SCROLLABLE)
-
+local tiny_preview = root:Object {
+    w = image.size * 2,
+    h = image.size * 2,
+    x = lvgl.HOR_RES() - image.size * 2 - BORDER_SIZE,
+    y = BORDER_SIZE * 3,
+    outline_color = "#000000",
+    outline_width = 1,
+    bg_color = "#ffffff",
+    radius = 0,
+    border_width = 0,
+    pad_all = 0,
+}:clear_flag(lvgl.FLAG.SCROLLABLE)
+tiny_img:draw(tiny_preview)
 -- -- Draw TinyImage preview
 -- for i = 0, 7 do
 --     for j = 0, 7 do
@@ -170,9 +170,11 @@ for i = 1, image.size do
             preview:get_child((j - 1) + (i - 1) * image.size).bg_color = COLORS[current_colour]
             
             -- -- Update TinyImage
-            -- tiny_img:set_pixel(i-1, j-1, current_colour - 1)  -- Convert to 0-based index
-            -- -- Update TinyImage preview
-            -- tiny_preview:get_child((j - 1) + (i - 1) * image.size).bg_color = COLORS[current_colour]
+            tiny_img:set_pixel(i-1, j-1, current_colour - 1)  -- Convert to 0-based index
+            -- Update TinyImage preview
+            tiny_preview:get_child((j - 1) + (i - 1) * image.size).bg_color = COLORS[current_colour]
+            -- tiny_preview:clean()
+            -- tiny_img:draw(tiny_preview)
         end)
     end
 end
