@@ -44,9 +44,9 @@ static int tinyimage_new(lua_State *L) {
 // Set a pixel's color
 static int tinyimage_set_pixel(lua_State *L) {
     TinyImage *img = (TinyImage *)luaL_checkudata(L, 1, "TinyImage");
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int color = luaL_checkinteger(L, 4);
+    int x = luaL_checkinteger(L, 2) - 1;
+    int y = luaL_checkinteger(L, 3) - 1;
+    int color = luaL_checkinteger(L, 4) - 1;
     
     if (x < 0 || x >= img->width || y < 0 || y >= img->height) {
         return luaL_error(L, "coordinates out of bounds");
@@ -70,8 +70,8 @@ static int tinyimage_set_pixel(lua_State *L) {
 // Get a pixel's color
 static int tinyimage_get_pixel(lua_State *L) {
     TinyImage *img = (TinyImage *)luaL_checkudata(L, 1, "TinyImage");
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
+    int x = luaL_checkinteger(L, 2) - 1;
+    int y = luaL_checkinteger(L, 3) - 1;
     
     if (x < 0 || x >= img->width || y < 0 || y >= img->height) {
         return luaL_error(L, "coordinates out of bounds");
@@ -81,7 +81,7 @@ static int tinyimage_get_pixel(lua_State *L) {
     int byte_index = index / 2;
     int bit_offset = (index % 2) * 2;
     
-    int color = (img->pixels[byte_index] >> bit_offset) & 3;
+    int color = ((img->pixels[byte_index] >> bit_offset) & 3) + 1;
     lua_pushinteger(L, color);
     
     return 1;
@@ -90,7 +90,7 @@ static int tinyimage_get_pixel(lua_State *L) {
 // Set a palette color
 static int tinyimage_set_palette(lua_State *L) {
     TinyImage *img = (TinyImage *)luaL_checkudata(L, 1, "TinyImage");
-    int index = luaL_checkinteger(L, 2);
+    int index = luaL_checkinteger(L, 2) - 1;
     int r = luaL_checkinteger(L, 3);
     int g = luaL_checkinteger(L, 4);
     int b = luaL_checkinteger(L, 5);
@@ -112,7 +112,7 @@ static int tinyimage_set_palette(lua_State *L) {
 // Get a palette color
 static int tinyimage_get_palette(lua_State *L) {
     TinyImage *img = (TinyImage *)luaL_checkudata(L, 1, "TinyImage");
-    int index = luaL_checkinteger(L, 2);
+    int index = luaL_checkinteger(L, 2) - 1;
     
     if (index < 0 || index > 3) {
         return luaL_error(L, "palette index must be between 0 and 3");

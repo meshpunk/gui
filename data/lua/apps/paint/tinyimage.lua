@@ -18,7 +18,7 @@ function TinyImage:new(o)
         for i = 1, 4 do
             assert(type(image.palette[i]) == "string" and #image.palette[i] == 7, "Colour must be a hex string")
             image:set_palette(
-                i - 1, 
+                i, 
                 tonumber(image.palette[i]:sub(2, 3), 16), 
                 tonumber(image.palette[i]:sub(4, 5), 16), 
                 tonumber(image.palette[i]:sub(6, 7), 16)
@@ -29,23 +29,23 @@ function TinyImage:new(o)
 end
 
 function TinyImage:set_pixel(x, y, color)
-    return tinyimage_c.set_pixel(self.data, x, y, color)
+    return self.data:set_pixel(x, y, color)
 end
 
 function TinyImage:get_pixel(x, y)
-    return tinyimage_c.get_pixel(self.data, x, y)
+    return self.data:get_pixel(x, y)
 end
 
 function TinyImage:set_palette(index, r, g, b)
-    return tinyimage_c.set_palette(self.data, index, r, g, b)
+    return self.data:set_palette(index, r, g, b)
 end
 
 function TinyImage:get_palette(index)
-    return tinyimage_c.get_palette(self.data, index)
+    return self.data:get_palette(index)
 end
 
 function TinyImage:get_size()
-    return tinyimage_c.get_size(self.data)
+    return self.data:get_size()
 end
 
 function TinyImage:draw(object)
@@ -62,7 +62,7 @@ function TinyImage:draw(object)
                 y = (j - 1) * scale,
                 w = scale,
                 h = scale,
-                bg_color = string.format("#%02x%02x%02x", self:get_palette(self:get_pixel(i - 1, j - 1))),
+                bg_color = string.format("#%02x%02x%02x", self:get_palette(self:get_pixel(i, j))),
                 radius = 0,
                 border_width = 0,
             }:clear_flag(lvgl.FLAG.SCROLLABLE)

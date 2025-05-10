@@ -117,7 +117,7 @@ for i = 1, IMAGE_SIZE do
             btn.bg_color = COLORS[current_colour] 
             
             -- -- Update TinyImage
-            tiny_img:set_pixel(i-1, j-1, current_colour - 1)  -- Convert to 0-based index
+            tiny_img:set_pixel(i, j, current_colour)
             -- Update TinyImage preview
             tiny_preview:get_child((j - 1) + (i - 1) * IMAGE_SIZE).bg_color = COLORS[current_colour]
         end)
