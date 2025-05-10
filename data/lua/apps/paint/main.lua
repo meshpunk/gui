@@ -13,13 +13,7 @@ root:set {
 
 local COLORS = { "#211e20", "#555568", "#a0a08b", "#e9efec" }
 
--- Create TinyImage version
 local IMAGE_SIZE = 8
-
-print("collectgarbage", collectgarbage("count"))
-local tiny_img = require("apps/paint/tinyimage"):new{ width = IMAGE_SIZE, height = IMAGE_SIZE, palette = COLORS }
-print("after", collectgarbage("count"))
-
 local PIXEL_SIZE = math.floor(lvgl.VER_RES() / (IMAGE_SIZE + 1))
 local CANVAS_SIZE = PIXEL_SIZE * IMAGE_SIZE
 local BORDER_SIZE = (lvgl.VER_RES() - CANVAS_SIZE) / 2
@@ -75,6 +69,9 @@ for i, colour in ipairs(COLORS) do
 end
 
 -- TinyImage preview
+
+local tiny_img = require("apps/paint/tinyimage"):new{ width = IMAGE_SIZE, height = IMAGE_SIZE, palette = COLORS }
+
 local tiny_preview = root:Object {
     w = IMAGE_SIZE * 4,
     h = IMAGE_SIZE * 4,

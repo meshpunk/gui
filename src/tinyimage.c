@@ -133,44 +133,6 @@ static int tinyimage_get_size(lua_State *L) {
     return 2;
 }
 
-// Convert to a regular Image object
-static int tinyimage_to_image(lua_State *L) {
-    TinyImage *img = (TinyImage *)luaL_checkudata(L, 1, "TinyImage");
-    
-    // Create a new table for the image
-    lua_createtable(L, 0, 3);
-    
-    // Set size
-    lua_pushinteger(L, img->width);
-    lua_setfield(L, -2, "size");
-    
-    // Create palette table
-    lua_createtable(L, 4, 0);
-    for (int i = 0; i < 4; i++) {
-        lua_createtable(L, 3, 0);
-        lua_pushinteger(L, img->palette[i][0]);
-        lua_rawseti(L, -2, 1);
-        lua_pushinteger(L, img->palette[i][1]);
-        lua_rawseti(L, -2, 2);
-        lua_pushinteger(L, img->palette[i][2]);
-        lua_rawseti(L, -2, 3);
-        lua_rawseti(L, -2, i + 1);
-    }
-    lua_setfield(L, -2, "palette");
-    
-    // Create data string
-    char *data = lua_newuserdata(L, img->width * img->height);
-    for (int i = 0; i < img->width * img->height; i++) {
-        int byte_index = i / 2;
-        int bit_offset = (i % 2) * 2;
-        data[i] = '0' + ((img->pixels[byte_index] >> bit_offset) & 3);
-    }
-    lua_pushlstring(L, data, img->width * img->height);
-    lua_setfield(L, -2, "data");
-    
-    return 1;
-}
-
 static const luaL_Reg tinyimage_methods[] = {
     {"new", tinyimage_new},
     {"set_pixel", tinyimage_set_pixel},
@@ -178,7 +140,6 @@ static const luaL_Reg tinyimage_methods[] = {
     {"set_palette", tinyimage_set_palette},
     {"get_palette", tinyimage_get_palette},
     {"get_size", tinyimage_get_size},
-    {"to_image", tinyimage_to_image},
     {NULL, NULL}
 };
 

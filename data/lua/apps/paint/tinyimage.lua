@@ -48,10 +48,6 @@ function TinyImage:get_size()
     return tinyimage_c.get_size(self.data)
 end
 
--- function TinyImage:to_image()
---     return tinyimage_c.to_image(self.data)
--- end
-
 function TinyImage:draw(object)
     width, height = self:get_size()
     local scale = object.width / width
