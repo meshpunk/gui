@@ -69,6 +69,7 @@ for i, colour in ipairs(COLORS) do
 end
 
 -- TinyImage preview
+
 local tiny_img = require("tinyimage").new(IMAGE_SIZE, IMAGE_SIZE, COLORS)
 
 local tiny_preview = root:Object {

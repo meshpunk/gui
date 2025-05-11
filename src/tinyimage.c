@@ -193,7 +193,6 @@ static int tinyimage_draw(lua_State *L) {
         return luaL_error(L, "Object scale must be an integer and consistent in x and y.\nGot object width=%d, height=%d, while the image is width=%d, height=%d", 
             obj_width, obj_height, width, height);
     }
-    printf("Drawing image as %d x %d\n", width * scale, height * scale);
     
     // Clear any existing children
     lv_obj_clean(obj);
