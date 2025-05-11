@@ -2,6 +2,8 @@
 #include <lauxlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <lvgl.h>
+#include "luavgl.h"
 
 typedef struct {
     uint8_t width;
@@ -37,6 +39,42 @@ static int tinyimage_new(lua_State *L) {
     img->palette[1][0] = 255; img->palette[1][1] = 255; img->palette[1][2] = 255;  // White
     img->palette[2][0] = 255; img->palette[2][1] = 0;   img->palette[2][2] = 0;    // Red
     img->palette[3][0] = 0;   img->palette[3][1] = 0;   img->palette[3][2] = 255;  // Blue
+
+    // Check if palette table was provided
+    if (lua_istable(L, 3)) {
+        lua_len(L, 3);
+        int palette_size = lua_tointeger(L, -1);
+        lua_pop(L, 1);
+        
+        if (palette_size != 4) {
+            return luaL_error(L, "Palette must be a table with 4 colors");
+        }
+        
+        for (int i = 0; i < 4; i++) {
+            lua_pushinteger(L, i + 1);
+            lua_gettable(L, 3);
+            
+            if (!lua_isstring(L, -1)) {
+                return luaL_error(L, "Color must be a hex string");
+            }
+            
+            const char* hex = lua_tostring(L, -1);
+            if (strlen(hex) != 7 || hex[0] != '#') {
+                return luaL_error(L, "Color must be a hex string in format #RRGGBB");
+            }
+            
+            // Convert hex to RGB
+            char hex_r[3] = {hex[1], hex[2], 0};
+            char hex_g[3] = {hex[3], hex[4], 0};
+            char hex_b[3] = {hex[5], hex[6], 0};
+            
+            img->palette[i][0] = strtol(hex_r, NULL, 16);
+            img->palette[i][1] = strtol(hex_g, NULL, 16);
+            img->palette[i][2] = strtol(hex_b, NULL, 16);
+            
+            lua_pop(L, 1);
+        }
+    }
     
     return 1;
 }
@@ -133,6 +171,60 @@ static int tinyimage_get_size(lua_State *L) {
     return 2;
 }
 
+// Draw the image to an LVGL object
+static int tinyimage_draw(lua_State *L) {
+    TinyImage *img = (TinyImage *)luaL_checkudata(L, 1, "TinyImage");
+    lv_obj_t* obj = luavgl_to_obj(L, 2);
+    
+    if (!obj) {
+        return luaL_error(L, "Invalid LVGL object");
+    }
+    
+    int width = img->width;
+    int height = img->height;
+    
+    // Get object dimensions from style if not laid out yet
+    int obj_width = lv_obj_get_style_width(obj, LV_PART_MAIN);
+    int obj_height = lv_obj_get_style_height(obj, LV_PART_MAIN);
+
+    int scale = obj_width / width;
+    
+    if (scale * width != obj_width || scale * height != obj_height) {
+        return luaL_error(L, "Object scale must be an integer and consistent in x and y.\nGot object width=%d, height=%d, while the image is width=%d, height=%d", 
+            obj_width, obj_height, width, height);
+    }
+    printf("Drawing image as %d x %d\n", width * scale, height * scale);
+    
+    // Clear any existing children
+    lv_obj_clean(obj);
+    
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            int color_idx = ((img->pixels[(j * width + i) / 2] >> ((j * width + i) % 2 * 2)) & 3);
+            uint8_t r = img->palette[color_idx][0];
+            uint8_t g = img->palette[color_idx][1];
+            uint8_t b = img->palette[color_idx][2];
+            
+            lv_obj_t* pixel = lv_obj_create(obj);
+            lv_obj_set_pos(pixel, i * scale, j * scale);
+            lv_obj_set_size(pixel, scale, scale);
+            lv_obj_set_style_bg_color(pixel, lv_color_make(r, g, b), LV_STATE_DEFAULT);
+            lv_obj_set_style_radius(pixel, 0, LV_PART_MAIN);
+            lv_obj_set_style_border_width(pixel, 0, LV_PART_MAIN);
+            lv_obj_clear_flag(pixel, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_clear_flag(pixel, LV_OBJ_FLAG_CLICKABLE);
+            
+            // Force immediate redraw
+            lv_obj_invalidate(pixel);
+        }
+    }
+    
+    // Force parent to redraw
+    lv_obj_invalidate(obj);
+    
+    return 0;
+}
+
 static const luaL_Reg tinyimage_methods[] = {
     {"new", tinyimage_new},
     {"set_pixel", tinyimage_set_pixel},
@@ -140,6 +232,7 @@ static const luaL_Reg tinyimage_methods[] = {
     {"set_palette", tinyimage_set_palette},
     {"get_palette", tinyimage_get_palette},
     {"get_size", tinyimage_get_size},
+    {"draw", tinyimage_draw},
     {NULL, NULL}
 };
 
