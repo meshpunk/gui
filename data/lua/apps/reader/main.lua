@@ -1,6 +1,6 @@
 -- WiFi fetch example application
-local wifi = require("wifi")
-local utils = require("utils")
+local wifi = require("lib/wifi")
+local utils = require("lib/utils")
 
 -- Create main UI
 -- local root = lvgl.Object()

@@ -48,6 +48,10 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
    pio run --target uploadfs
    ```
 
+## VSCode hints
+
+You must close the serial monitor before uploadfs or it wont work.
+
 ## Submodules
 
 This project uses the following Git submodules:
