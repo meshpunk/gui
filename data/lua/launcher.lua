@@ -39,16 +39,9 @@ local function create_launcher(parent)
     for name, app in pairs(apps) do
         print("Creating app button for", name, app.exec)
 
-        local item = root:Object({
-            w = 100,
-            h = lvgl.PCT(100),
-        })
-        item:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-        local label = item:Label({
-            text = string.format("%s", name),
-        })
-        label:center()
+        -- Connect button
+        local btn = root:Button{w = 100, h = 40}
+        btn:Label{text = name, align = lvgl.ALIGN.CENTER}
       end
 
     return root
