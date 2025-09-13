@@ -37,11 +37,29 @@ local function create_launcher(parent)
     -- Create app buttons
     local index = 0
     for name, app in pairs(apps) do
-        print("Creating app button for", name, app.exec)
+      local entrypoint = "/lua" .. (app.entry or "main.lua")
+      local icon = app.icon and ("/lua" .. app.icon) or "/lua/icon.png"
+
+        print("Creating app button for", name, entrypoint)
 
         -- Connect button
         local btn = root:Button{w = 100, h = 40}
         btn:Label{text = name, align = lvgl.ALIGN.CENTER}
+
+        btn:onClicked(function()
+            print("Launching app:", entrypoint)
+
+            -- Close launcher and launch app
+            root:delete()
+
+            -- Dofile...
+            local success, err = pcall(function()
+                dofile(entrypoint)
+            end)
+            if not success then
+                print("Error launching app:", err)
+            end
+        end)
       end
 
     return root

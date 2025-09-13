@@ -7,16 +7,49 @@
 #include <Ticker.h> // Include ticker for LVGL timing
 #include <WiFi.h>
 #include <Wire.h>
+#include "tdeck-pins.h"
 
 // WiFi credentials
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
 #include <luavgl.h>
+
+int luaL_loadfilex(lua_State *L, const char *filename, const char *mode) {
+    File file = LittleFS.open(filename, "r");
+    if (!file || file.isDirectory()) {
+      lua_pushfstring(L, "cannot open %s", filename);
+      return LUA_ERRFILE;
+    }
+
+    size_t size = file.size();
+    char* buffer = (char*)malloc(size + 1);
+    if (!buffer) {
+      file.close();
+      lua_pushliteral(L, "out of memory");
+      return LUA_ERRMEM;
+    }
+
+    file.readBytes(buffer, size);
+    buffer[size] = '\0';
+    file.close();
+
+    int status = luaL_loadbufferx(L, buffer, size, filename, mode);
+    free(buffer);
+    return status;
+  }
+
 }
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
+
+// Home button
+volatile bool homePressed = false;
+
+void IRAM_ATTR ISR_click() {
+  homePressed = true;
+}
 
 // Keyboard I2C defines
 #define LILYGO_KB_SLAVE_ADDRESS 0x55
@@ -726,7 +759,10 @@ void setup() {
   
   Serial.println("MeshPunk LuaVGL Demo");
 
-  
+  // Connect trackball / home button
+  pinMode(TDECK_TRACKBALL_CLICK, INPUT_PULLUP);
+  attachInterrupt(TDECK_TRACKBALL_CLICK, ISR_click, FALLING);
+
   // Initialize filesystem
   if (LittleFS.begin(true)) {
     fs_mounted = true;
@@ -863,6 +899,27 @@ void loop() {
   //   }
   //   last_kb_check = millis();
   // }
+
+  // Check for home button press
+  if (homePressed) {
+    homePressed = false;
+
+    Serial.println("[Home Button] dofile('/launcher')");
+
+    if (L) {
+      String scriptPath = String(LUA_PATH) + "main.lua";
+      int err = luaL_dofile(L, scriptPath.c_str());
+      
+      if (err != 0) {
+        const char* err_msg = lua_tostring(L, -1);
+        Serial.printf("Lua Error: %s\n", err_msg);
+        lua_pop(L, 1); // remove error message
+      }
+      
+    } else {
+      Serial.println("Lua state is NULL!");
+    }
+  }
 
   delay(5);
 }
