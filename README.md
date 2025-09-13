@@ -30,6 +30,7 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
 
 ## Building and Development
 
+0. `softwareupdate --install-rosetta`
 1. Clone this repository
 2. Initialize the submodules:
    ```
@@ -41,8 +42,8 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
    ```
    pio run --target upload
    ```
-   This will automatically upload both the firmware and the filesystem data.
-6. To upload only the filesystem data (after changing Lua scripts):
+   This will upload only the firmware, not the filesystem data.
+6. To upload the filesystem data (when changing lua scripts)
    ```
    pio run --target uploadfs
    ```

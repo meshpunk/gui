@@ -45,6 +45,36 @@ char last_key = 0;
 // Filesystem variables
 bool fs_mounted = false;
 
+// List dir helper
+void listDir(fs::FS &fs, const char *dirname, int level = 0) {
+  File root = fs.open(dirname);
+  if (!root || !root.isDirectory()) {
+    Serial.print("Failed to open directory: ");
+    Serial.println(dirname);
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    for (int i = 0; i < level; i++) Serial.print("  ");
+    Serial.print(dirname);
+    Serial.print("/");
+    Serial.print(file.name());
+    Serial.print(":");
+    Serial.print(file.size());
+    Serial.println("b");
+
+    if (file.isDirectory()) {
+      String path = String(dirname);
+      if (!path.endsWith("/")) path += "/";
+      path += file.name();
+      listDir(fs, path.c_str(), level + 1);
+    }
+
+    file = root.openNextFile();
+  }
+}
+
 // Helper functions for Lua file loading
 String readFile(const char *filename) {
   if (!fs_mounted) {
@@ -66,6 +96,36 @@ String readFile(const char *filename) {
   file.close();
 
   return content;
+}
+
+static int lua_io_open(lua_State *L) {
+  const char *filename = luaL_checkstring(L, 1);
+  const char *mode = luaL_optstring(L, 2, "r");
+
+  Serial.print("io.open: ");
+  Serial.println(filename);
+
+  if (String(mode) != "r") {
+    lua_pushnil(L);
+    lua_pushstring(L, "Only 'r' mode supported");
+    return 2;
+  }
+
+  fs::File f = LittleFS.open(filename, "r");
+  if (!f || f.isDirectory()) {
+    lua_pushnil(L);
+    lua_pushstring(L, "File not found or is a directory");
+    return 2;
+  }
+
+  // Wrap file in userdata
+  fs::File *file = new fs::File(f);
+  fs::File **ud = (fs::File **)lua_newuserdata(L, sizeof(fs::File *));
+  *ud = file;
+
+  luaL_getmetatable(L, "esp32_file");
+  lua_setmetatable(L, -2);
+  return 1;
 }
 
 // LilyGo T-Deck control backlight chip has 16 levels of adjustment range
@@ -510,6 +570,67 @@ void setupLuaVGL() {
     end
   )");
 
+  // Register file metatable
+  luaL_newmetatable(L, "esp32_file");
+
+  // Create a method table for the file object
+  lua_newtable(L);
+
+  // file:read()
+  lua_pushcfunction(L, [](lua_State *L) -> int {
+    fs::File **ud = (fs::File **)luaL_checkudata(L, 1, "esp32_file");
+    String content = (*ud)->readString(); // Read whole file
+    lua_pushstring(L, content.c_str());
+    return 1;
+  });
+  lua_setfield(L, -2, "read");
+
+  // file:close()
+  lua_pushcfunction(L, [](lua_State *L) -> int {
+    fs::File **ud = (fs::File **)luaL_checkudata(L, 1, "esp32_file");
+    (*ud)->close();
+    delete *ud;
+    *ud = nullptr;
+    return 0;
+  });
+  lua_setfield(L, -2, "close");
+
+  // Set the __index = method table
+  lua_setfield(L, -2, "__index");
+
+  // Optional: __gc finalizer (cleanup on Lua garbage collection)
+  lua_pushcfunction(L, [](lua_State *L) -> int {
+    fs::File **ud = (fs::File **)luaL_checkudata(L, 1, "esp32_file");
+    if (*ud) {
+      (*ud)->close();
+      delete *ud;
+      *ud = nullptr;
+    }
+    return 0;
+  });
+  lua_setfield(L, -2, "__gc");
+
+  lua_pop(L, 1); // pop metatable
+
+  Serial.println("Added esp32_file");
+
+
+  // Inject our C++-backed io.open into the Lua global 'io' table
+  lua_getglobal(L, "io"); // push io table
+
+  if (lua_isnil(L, -1)) {
+    lua_newtable(L);           // create io table if not present
+    lua_setglobal(L, "io");    // set it
+    lua_getglobal(L, "io");    // push it again
+  }
+
+  lua_pushcfunction(L, lua_io_open);
+  lua_setfield(L, -2, "open"); // io.open = lua_io_open
+
+  lua_pop(L, 1); // pop io table
+
+  Serial.println("Patched IO");
+
   Serial.println("LuaVGL environment initialized");
 
   if (!fs_mounted) {
@@ -600,28 +721,21 @@ void setupLuaVGL() {
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Delaying for 2500ms...");
+  delay(2500);
+  
   Serial.println("MeshPunk LuaVGL Demo");
 
+  
   // Initialize filesystem
   if (LittleFS.begin(true)) {
     fs_mounted = true;
     Serial.println("LittleFS mounted successfully");
 
-    // List root directory contents
-    fs::File root = LittleFS.open("/");
-    fs::File file = root.openNextFile();
-
     Serial.println("LittleFS contents:");
-    while (file) {
-      Serial.print("  ");
-      Serial.print(file.name());
-      Serial.print(" (");
-      Serial.print(file.size());
-      Serial.println(" bytes)");
-      file = root.openNextFile();
-    }
+    listDir(LittleFS, "/lua");
   } else {
-    Serial.println("Error mounting LittleFS");
+    Serial.println("Error mounting LittleFS!!");
   }
 
   // Initialize WiFi in station mode
