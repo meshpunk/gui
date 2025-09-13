@@ -21,22 +21,9 @@ local function create_launcher(parent)
             align_content = "center",
         },
         w = 300,
-        h = 75,
+        h = 240,
         align = lvgl.ALIGN.CENTER,
     })
-
-    for i = 1, 10 do
-        local item = root:Object({
-            w = 100,
-            h = lvgl.PCT(100),
-        })
-        item:clear_flag(lvgl.FLAG.SCROLLABLE)
-
-        local label = item:Label({
-            text = string.format("label %d", i),
-        })
-        label:center()
-    end
 
     -- Load apps from TOML
     local file = io.open("/lua/apps.toml", "r")
@@ -50,12 +37,19 @@ local function create_launcher(parent)
     -- Create app buttons
     local index = 0
     for name, app in pairs(apps) do
+        print("Creating app button for", name, app.exec)
+
         local item = root:Object({
             w = 100,
             h = lvgl.PCT(100),
         })
         item:clear_flag(lvgl.FLAG.SCROLLABLE)
-    end
+
+        local label = item:Label({
+            text = string.format("%s", name),
+        })
+        label:center()
+      end
 
     return root
 end
