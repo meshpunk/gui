@@ -32,11 +32,12 @@ local function create_launcher(parent)
     file:close()
     print(content)
 
-    local apps = toml.parse(content)
+    local config = toml.parse(content)
 
     -- Create app buttons
     local index = 0
-    for name, app in pairs(apps) do
+    for _, app in ipairs(config.apps) do
+      local name = app.name or "Unnamed"
       local entrypoint = "/lua" .. (app.entry or "main.lua")
       local icon = app.icon and ("/lua" .. app.icon) or "/lua/icon.png"
 

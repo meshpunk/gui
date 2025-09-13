@@ -7,7 +7,7 @@ local messages = {
         timestamp = "12:00 PM"
     },
     {
-        text = "This bike is a pipe bomb",
+        text = "Against me!",
         sender = "0x9876543210",
         timestamp = "12:01 PM"
     }
