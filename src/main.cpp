@@ -1078,12 +1078,6 @@ void loop() {
 
     Serial.println("[Home Button] dofile('/launcher')");
 
-    lv_obj_t* root = lv_scr_act();
-
-    if (root) {
-      lv_obj_clean(root);
-    }
-
     if (L) {
       String scriptPath = String(LUA_PATH) + "main.lua";
       int err = luaL_dofile(L, scriptPath.c_str());
