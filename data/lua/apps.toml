@@ -7,3 +7,8 @@ entry = "/apps/reader/main.lua"
 name = "messenger"
 icon = "/apps/messenger/icon.png"
 entry = "/apps/messenger/main.lua"
+
+[[apps]]
+name = "notes"
+icon = "/apps/notes/icon.png"
+entry = "/apps/notes/main.lua"

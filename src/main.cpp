@@ -136,22 +136,28 @@ static int lua_io_open(lua_State *L) {
   const char *mode = luaL_optstring(L, 2, "r");
 
   Serial.print("io.open: ");
-  Serial.println(filename);
+  Serial.print(filename);
+  Serial.print(" mode: ");
+  Serial.println(mode);
 
-  if (String(mode) != "r") {
+  const char *fs_mode;
+  if (strcmp(mode, "r") == 0) {
+    fs_mode = "r";
+  } else if (strcmp(mode, "w") == 0) {
+    fs_mode = "w";
+  } else {
     lua_pushnil(L);
-    lua_pushstring(L, "Only 'r' mode supported");
+    lua_pushstring(L, "Only 'r' and 'w' modes supported");
     return 2;
   }
 
-  fs::File f = LittleFS.open(filename, "r");
-  if (!f || f.isDirectory()) {
+  fs::File f = LittleFS.open(filename, fs_mode);
+  if (!f) {
     lua_pushnil(L);
-    lua_pushstring(L, "File not found or is a directory");
+    lua_pushstring(L, "Failed to open file");
     return 2;
   }
 
-  // Wrap file in userdata
   fs::File *file = new fs::File(f);
   fs::File **ud = (fs::File **)lua_newuserdata(L, sizeof(fs::File *));
   *ud = file;
@@ -618,6 +624,25 @@ void setupLuaVGL() {
   });
   lua_setfield(L, -2, "read");
 
+  // file:write(str)
+  lua_pushcfunction(L, [](lua_State *L) -> int {
+    fs::File **ud = (fs::File **)luaL_checkudata(L, 1, "esp32_file");
+    size_t len;
+    const char *str = luaL_checklstring(L, 2, &len);
+    size_t written = (*ud)->print(str);
+    lua_pushinteger(L, written);
+    return 1;
+  });
+  lua_setfield(L, -2, "write");
+
+  // file:flush()
+  lua_pushcfunction(L, [](lua_State *L) -> int {
+    fs::File **ud = (fs::File **)luaL_checkudata(L, 1, "esp32_file");
+    (*ud)->flush();
+    return 0;
+  });
+  lua_setfield(L, -2, "flush");
+  
   // file:close()
   lua_pushcfunction(L, [](lua_State *L) -> int {
     fs::File **ud = (fs::File **)luaL_checkudata(L, 1, "esp32_file");
@@ -754,8 +779,8 @@ void setupLuaVGL() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Delaying for 2500ms...");
-  delay(2500);
+  Serial.println("Delaying for 50ms...");
+  delay(50);
   
   Serial.println("MeshPunk LuaVGL Demo");
 
@@ -915,7 +940,7 @@ void loop() {
         Serial.printf("Lua Error: %s\n", err_msg);
         lua_pop(L, 1); // remove error message
       }
-      
+
     } else {
       Serial.println("Lua state is NULL!");
     }
