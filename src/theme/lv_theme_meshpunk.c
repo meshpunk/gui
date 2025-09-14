@@ -166,6 +166,7 @@ struct _my_theme_t {
     lv_color_t color_text;
     lv_color_t color_card;
     lv_color_t color_grey;
+    lv_color_t color_hotpink;
     bool inited;
     my_theme_styles_t styles;
 
@@ -227,6 +228,7 @@ static void style_init(my_theme_t * theme)
     theme->color_text = theme->base.flags & MODE_DARK ? DARK_COLOR_TEXT : LIGHT_COLOR_TEXT;
     theme->color_card = theme->base.flags & MODE_DARK ? DARK_COLOR_CARD : LIGHT_COLOR_CARD;
     theme->color_grey = theme->base.flags & MODE_DARK ? DARK_COLOR_GREY : LIGHT_COLOR_GREY;
+    theme->color_hotpink = lv_color_hex(0xFF00AA);
 
     style_init_reset(&theme->styles.transition_delayed);
     style_init_reset(&theme->styles.transition_normal);
@@ -293,7 +295,7 @@ static void style_init(my_theme_t * theme)
     style_init_reset(&theme->styles.btn);
     lv_style_set_radius(&theme->styles.btn, RADIUS_MESHPUNK);
     lv_style_set_bg_opa(&theme->styles.btn, LV_OPA_COVER);
-    lv_style_set_bg_color(&theme->styles.btn, theme->color_grey);
+    lv_style_set_bg_color(&theme->styles.btn, theme->color_hotpink);
     if(!(theme->base.flags & MODE_DARK)) {
         lv_style_set_shadow_color(&theme->styles.btn, lv_palette_main(LV_PALETTE_GREY));
         lv_style_set_shadow_width(&theme->styles.btn, LV_DPX(3));
