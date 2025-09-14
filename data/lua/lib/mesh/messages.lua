@@ -1,12 +1,18 @@
 local M = {
-    __handlers = {},
+    __onMessage = nil,
     __history = {}
 }
 
-function M:on(event, cb)
-    if event == "recv" then
-        table.insert(self.__handlers, cb)
-    end
+function M:onMessage(cb)
+    M.__onMessage = cb
+end
+
+function M:broadcast(text)
+    print("Broadcasting message:", text)
+    
+    -- Here you would add the actual broadcasting logic
+    -- For now, we simulate receiving the message ourselves
+    M.__dispatch(text, os.time(), true, 0)
 end
 
 function M.__dispatch(text, timestamp, direct, hops)
@@ -19,9 +25,9 @@ function M.__dispatch(text, timestamp, direct, hops)
   }
 
   table.insert(M.__history, msg)
-  
-  for _, cb in ipairs(M.__handlers) do
-    cb(msg)
+
+  if M.__onMessage then
+    M.__onMessage(msg)
   end
 end
 

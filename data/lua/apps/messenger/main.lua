@@ -3,21 +3,10 @@
 local messages = require("lib/mesh/messages")
 
 -- Get past messages
-for _, msg in ipairs(messages:all()) do
-  print(msg.from .. ": " .. msg.text)
-end
+-- for _, msg in ipairs(messages:all()) do
+--   print(msg.from .. ": " .. msg.text)
+-- end
 
--- React to new messages
-messages:on("recv", function(msg)
---   print(msg)
---   print(msg.timestamp .. " 🕒")
---   print(msg.hops .. "🐰")
-
---   print("🔥 From:" .. msg.from)
---   print("💬 Text:" .. msg.text)
-
-  update_message_list()
-end)
 
 
 -- local messages = {
@@ -91,27 +80,38 @@ function update_message_list()
     message_view:clean()
 
     for _, message in ipairs(messages:all()) do
-        local message_item = message_view:Object {
-            flex = {
-                flex_direction = "row",
-                justify = "space_between"
-            },
-            w = lvgl.PCT(100),
-            h = lvgl.SIZE_CONTENT,
-            border_width = 0,
-        }
-        message_item:clear_flag(lvgl.FLAG.SCROLLABLE)
+        -- local message_item = message_view:Object {
+        --     flex = {
+        --         flex_direction = "row",
+        --         justify = "space_between"
+        --     },
+        --     w = lvgl.PCT(100),
+        --     h = lvgl.SIZE_CONTENT,
+        --     border_width = 0,
+        -- }
+        -- message_item:clear_flag(lvgl.FLAG.SCROLLABLE)
 
-        message_item:Label {
+        message_view:Label {
             text = message.text,
-            h = lvgl.SIZE_CONTENT,
+            h = 16,
             w = lvgl.PCT(100),
-
         }   
     end
 end
 
 update_message_list()
+
+-- React to new messages
+messages:onMessage(function(msg)
+  print(msg)
+--   print(msg.timestamp .. " 🕒")
+--   print(msg.hops .. "🐰")
+
+  print("🔥 From:" .. msg.from)
+  print("💬 Text:" .. msg.text)
+
+  update_message_list()
+end)
 
 local form = root:Object {
     flex = {

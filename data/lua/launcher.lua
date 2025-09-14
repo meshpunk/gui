@@ -6,13 +6,6 @@ local lvgl = require("lvgl")
 local toml = require("lib/toml")
 local messages = require("lib/mesh/messages")
 
-local unread = 0
-
--- Get past messages
-for _, msg in ipairs(messages:all()) do
-  unread = unread + 1
-end
-
 -- Constants for grid layout
 local GRID_COLS = 4
 local GRID_ROWS = 3
@@ -20,6 +13,13 @@ local ICON_SIZE = 64
 local PADDING = 10
 
 local function create_launcher(parent)
+    local unread = 0
+
+    -- Get past messages
+    for _, msg in ipairs(messages:all()) do
+        unread = unread + 1
+    end
+
     local root = lvgl.Object({
         flex = {
             flex_direction = "row",
@@ -44,14 +44,16 @@ local function create_launcher(parent)
     local indicator = root:Label{text = unread .. ' unread', align = lvgl.ALIGN.CENTER, w = 100, h = 40}
 
     -- React to new messages
-    messages:on("recv", function(msg)
+    messages:onMessage(function(msg)
         print("recv!")
     --   print(msg)
     --   print(msg.timestamp .. " 🕒")
     --   print(msg.hops .. "🐰")
 
       unread = unread + 1
-      indicator:set { text = unread .. ' unread' }
+      print(unread .. " unread")
+      indicator.text = unread .. ' unread'
+      print("set indicator again!")
     end)
 
     local config = toml.parse(content)
