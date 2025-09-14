@@ -1,17 +1,37 @@
 -- Main messenger application
 
-local messages = {
-    {
-        text = "Yo whats the best folk punk band",
-        sender = "0x1234567890",
-        timestamp = "12:00 PM"
-    },
-    {
-        text = "Against me!",
-        sender = "0x9876543210",
-        timestamp = "12:01 PM"
-    }
-}
+local messages = require("lib/mesh/messages")
+
+-- Get past messages
+for _, msg in ipairs(messages:all()) do
+  print(msg.from .. ": " .. msg.text)
+end
+
+-- React to new messages
+messages:on("recv", function(msg)
+--   print(msg)
+--   print(msg.timestamp .. " 🕒")
+--   print(msg.hops .. "🐰")
+
+--   print("🔥 From:" .. msg.from)
+--   print("💬 Text:" .. msg.text)
+
+  update_message_list()
+end)
+
+
+-- local messages = {
+--     {
+--         text = "Yo whats the best folk punk band",
+--         sender = "0x1234567890",
+--         timestamp = "12:00 PM"
+--     },
+--     {
+--         text = "Against me!",
+--         sender = "0x9876543210",
+--         timestamp = "12:01 PM"
+--     }
+-- }
 
 -- Helper function to create buttons
 local function createBtn(parent, name)
@@ -68,9 +88,9 @@ local message_view = root:Object {
 
 function update_message_list()
     -- label:delete()
-    -- message_view:clear()
+    message_view:clean()
 
-    for _, message in ipairs(messages) do
+    for _, message in ipairs(messages:all()) do
         local message_item = message_view:Object {
             flex = {
                 flex_direction = "row",
@@ -126,11 +146,12 @@ ta:onevent(lvgl.EVENT.KEY, function(obj, code)
     print(key)
 
     if key == lvgl.KEY.ENTER then
-        messages[#messages + 1] = {
-            text = ta.text,
-            sender = "0x1234567890",
-            timestamp = "12:00 PM"
-        }
+        messages.broadcast(ta.text)
+        -- messages[#messages + 1] = {
+        --     text = ta.text,
+        --     sender = "0x1234567890",
+        --     timestamp = "12:00 PM"
+        -- }
 
         update_message_list()
 

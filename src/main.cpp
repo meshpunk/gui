@@ -647,6 +647,9 @@ void setupLuaVGL() {
     return;
   }
 
+  // Set Lua runtime on PunkMesh
+  the_mesh.lua_runtime = L;
+
   // Open standard Lua libraries
   luaL_openlibs(L);
 

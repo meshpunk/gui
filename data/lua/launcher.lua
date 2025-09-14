@@ -4,6 +4,14 @@
 
 local lvgl = require("lvgl")
 local toml = require("lib/toml")
+local messages = require("lib/mesh/messages")
+
+local unread = 0
+
+-- Get past messages
+for _, msg in ipairs(messages:all()) do
+  unread = unread + 1
+end
 
 -- Constants for grid layout
 local GRID_COLS = 4
@@ -31,6 +39,20 @@ local function create_launcher(parent)
     local content = file:read()
     file:close()
     print(content)
+
+    -- Connect button
+    local indicator = root:Label{text = unread .. ' unread', align = lvgl.ALIGN.CENTER, w = 100, h = 40}
+
+    -- React to new messages
+    messages:on("recv", function(msg)
+        print("recv!")
+    --   print(msg)
+    --   print(msg.timestamp .. " 🕒")
+    --   print(msg.hops .. "🐰")
+
+      unread = unread + 1
+      indicator:set { text = unread .. ' unread' }
+    end)
 
     local config = toml.parse(content)
 

@@ -1,6 +1,11 @@
 #include "punkmesh.h"
 #include <LittleFS.h>
 
+
+// Test identity to stop spamming my local area
+#define PRV_KEY "E0A362A3E88BD763BBAD96F0335BB490557446932F73D9E5EA8BE8AA4D7F0C6B569C81C66E5C557233159D930C2EBEFC92AC71C3F5A9A64907F4B17DCE7AFABD"
+#define PUB_KEY "7F97BF0E8FFC8E4C0FF089FB3C881875A926FAEAB91A790A66E3E1E37FB29321"
+
 /* ---------------------------------- CONFIGURATION ------------------------------------- */
 
 #define FIRMWARE_VER_TEXT "v2 (build: 4 Feb 2025)"
@@ -33,6 +38,62 @@
 #define DIRECT_SEND_PERHOP_EXTRA_MILLIS 250
 
 #define PUBLIC_GROUP_PSK "izOH6cXN6mrJ5e26oRXNcg=="
+
+// Punk<->Lua bridge
+
+void lua_mesh_push_message(lua_State* L, const mesh::GroupChannel &channel, mesh::Packet *pkt, uint32_t timestamp, const char *text) {
+    lua_getglobal(L, "require");
+    lua_pushstring(L, "lib/mesh/messages");
+
+    if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+        Serial.printf("require failed: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return;
+    }
+
+    // module on stack
+    lua_getfield(L, -1, "__dispatch");  // [module, __dispatch]
+    if (!lua_isfunction(L, -1)) {
+        Serial.println("❌ __dispatch not a function!");
+        lua_pop(L, 2); // module + bad value
+        return;
+    }
+
+    const char* leaked_text = strdup(text);  // YOLO 🔥
+    
+    // lua_pushvalue(L, -2);               // push module as self
+    lua_pushstring(L, leaked_text);     // arg1: text
+    lua_pushinteger(L, timestamp);      // arg2: timestamp
+    lua_pushboolean(L, pkt->isRouteDirect()); // arg3: direct
+    lua_pushinteger(L, pkt->path_len);  // arg4: hops
+
+    if (lua_pcall(L, 4, 0, 0) != LUA_OK) {
+        Serial.printf("❌ __dispatch failed: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1); // pop module
+}
+
+void PunkMesh::store_message(const char* from, const char* text, uint32_t timestamp, uint8_t hops, bool direct) {
+    int idx = (msg_head + msg_count) % MAX_MESSAGES;
+
+    if (msg_count == MAX_MESSAGES) {
+        // overwrite oldest
+        idx = msg_head;
+        msg_head = (msg_head + 1) % MAX_MESSAGES;
+    } else {
+        msg_count++;
+    }
+
+    strncpy(message_history[idx].from, from, sizeof(message_history[idx].from) - 1);
+    strncpy(message_history[idx].text, text, sizeof(message_history[idx].text) - 1);
+    message_history[idx].timestamp = timestamp;
+    message_history[idx].hops = hops;
+    message_history[idx].direct = direct;
+}
+
+// Meshcore...
 
 // Believe it or not, this std C function is busted on some platforms!
 static uint32_t _atoi(const char *sp)
@@ -249,6 +310,11 @@ void PunkMesh::onSignedMessageRecv(const ContactInfo &from, mesh::Packet *pkt, u
 
 void PunkMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packet *pkt, uint32_t timestamp, const char *text)
 {
+    // Send to Lua
+    if (lua_runtime) {
+        lua_mesh_push_message(lua_runtime, channel, pkt, timestamp, text);
+    }
+
     if (pkt->isRouteDirect())
     {
         Serial.printf("PUBLIC CHANNEL MSG -> (Direct!)\n");
@@ -257,7 +323,7 @@ void PunkMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Pac
     {
         Serial.printf("PUBLIC CHANNEL MSG -> (Flood) hops %d\n", pkt->path_len);
     }
-    Serial.printf("   %s\n", text);
+    // Serial.printf("   %s\n", text);
 }
 
 uint8_t PunkMesh::onContactRequest(const ContactInfo &contact, uint32_t sender_timestamp, const uint8_t *data, uint8_t len, uint8_t *reply)
@@ -316,6 +382,10 @@ void PunkMesh::begin()
 #endif
     // if (!store.load("_main", self_id, _prefs.node_name, sizeof(_prefs.node_name))) {  // legacy: node_name was from identity file
     //  Need way to get some entropy to seed RNG
+
+#if defined(PRV_KEY)
+    self_id = mesh::LocalIdentity(PRV_KEY, PUB_KEY);
+#else
     Serial.println("Press ENTER to generate key:");
     char c = 0;
     while (c != '\n')
@@ -326,12 +396,14 @@ void PunkMesh::begin()
     ((StdRNG *)getRNG())->begin(millis());
 
     self_id = mesh::LocalIdentity(getRNG()); // create new random identity
+
     int count = 0;
     while (count < 10 && (self_id.pub_key[0] == 0x00 || self_id.pub_key[0] == 0xFF))
     { // reserved id hashes
         self_id = mesh::LocalIdentity(getRNG());
         count++;
     }
+#endif
     // store.save("_main", self_id);
     // }
 
@@ -405,7 +477,15 @@ void PunkMesh::showWelcome()
     Serial.println("===== MeshCore Chat Terminal =====");
     Serial.println();
     Serial.printf("WELCOME  %s\n", _prefs.node_name);
-    mesh::Utils::printHex(Serial, self_id.pub_key, PUB_KEY_SIZE);
+
+    // Serial.print("Public key: ");
+    // mesh::Utils::printHex(Serial, self_id.pub_key, PUB_KEY_SIZE);
+
+    // Serial.print("Private key: ");
+    // mesh::Utils::printHex(Serial, self_id.prv_key, PRIV_KEY_SIZE);
+
+    self_id.printTo(Serial);
+
     Serial.println();
     Serial.println("   (enter 'help' for basic commands)");
     Serial.println();
@@ -672,44 +752,3 @@ void PunkMesh::loop()
     }
 }
 
-/*
-void halt() {
-  while (1) ;
-}
-
-void setup() {
-  Serial.begin(115200);
-
-  board.begin();
-
-  if (!radio_init()) { halt(); }
-
-  fast_rng.begin(radio_get_rng_seed());
-
-#if defined(NRF52_PLATFORM)
-  InternalFS.begin();
-  the_mesh.begin(InternalFS);
-#elif defined(RP2040_PLATFORM)
-  LittleFS.begin();
-  the_mesh.begin(LittleFS);
-#elif defined(ESP32)
-  SPIFFS.begin(true);
-  the_mesh.begin(SPIFFS);
-#else
-  #error "need to define filesystem"
-#endif
-
-  radio_set_params(the_mesh.getFreqPref(), LORA_BW, LORA_SF, LORA_CR);
-  radio_set_tx_power(the_mesh.getTxPowerPref());
-
-  the_mesh.showWelcome();
-
-  // send out initial Advertisement to the mesh
-  the_mesh.sendSelfAdvert(1200);   // add slight delay
-}
-
-void loop() {
-  the_mesh.loop();
-}
-
-*/

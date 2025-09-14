@@ -10,6 +10,12 @@
 #include <helpers/IdentityStore.h>
 #include <RTClib.h>
 
+extern "C" {
+#include <lua.h>
+#include <lualib.h>
+#include <luavgl.h>
+}
+
 // Forward declarations
 // class PunkMesh;
 
@@ -24,16 +30,24 @@ struct NodePrefs
   uint8_t unused[3];
 };
 
+struct MeshMessage {
+    char from[32];     // short pubkey or addr
+    char text[128];    // payload
+    uint32_t timestamp;
+    uint8_t hops;
+    bool direct;
+};
+
+#define MAX_MESSAGES 64   // tweak as needed
+
+static MeshMessage message_history[MAX_MESSAGES];
+static int msg_head = 0;
+static int msg_count = 0;
+
 // Class declaration
 class PunkMesh : public BaseChatMesh, ContactVisitor
 {
-  // --- Methods implemented in punkmesh.cpp but missing from header ---
 public:
-  const char *getTypeName(uint8_t type) const;
-  void loadContacts();
-  void saveContacts();
-  void setClock(uint32_t timestamp);
-  void importCard(const char *command);
   NodePrefs _prefs;
   uint32_t expected_ack_crc;
   ChannelDetails *_public;
@@ -42,8 +56,8 @@ public:
   char command[512 + 10];
   uint8_t tmp_buf[256];
   char hex_buf[512];
+  lua_State *lua_runtime = NULL;
 
-public:
   PunkMesh(mesh::Radio &radio, StdRNG &rng, mesh::RTCClock &rtc, SimpleMeshTables &tables);
 
   void begin();
@@ -52,6 +66,11 @@ public:
   void sendSelfAdvert(int delay_millis);
   void showWelcome();
   void savePrefs();
+  const char *getTypeName(uint8_t type) const;
+  void loadContacts();
+  void saveContacts();
+  void setClock(uint32_t timestamp);
+  void importCard(const char *command);
 
   float getFreqPref() const;
   uint8_t getTxPowerPref() const;
@@ -75,6 +94,10 @@ protected:
   uint32_t calcDirectTimeoutMillisFor(uint32_t pkt_airtime_millis, uint8_t path_len) const override;
 
   void onContactVisit(const ContactInfo &contact) override;
+
+  // Punk stuff
+  void store_message(const char* from, const char* text, uint32_t timestamp, uint8_t hops, bool direct);
+
 };
 
 // Optional: declare global instance if using one
