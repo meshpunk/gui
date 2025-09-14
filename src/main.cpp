@@ -326,6 +326,64 @@ static void touchpad_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
   }
 }
 
+// Setup Serial Protocol
+
+void handleWebSerialCommands() {
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+
+    if (cmd.startsWith("READ ")) {
+      String path = cmd.substring(5);
+      File f = LittleFS.open(path, "r");
+      if (!f) {
+        Serial.println("ERR: Cannot open file");
+        return;
+      }
+
+      while (f.available()) {
+        Serial.write(f.read());
+      }
+      f.close();
+      Serial.println(); // newline after file content
+      Serial.println("OK");
+    }
+
+    else if (cmd.startsWith("WRITE ")) {
+      String path = cmd.substring(6);
+      File f = LittleFS.open(path, "w");
+      if (!f) {
+        Serial.println("ERR: Cannot open file for writing");
+        return;
+      }
+
+      while (!Serial.available()); // wait for next line (start of file content)
+      String content = Serial.readStringUntil(0x1A); // end with CTRL+Z (ASCII 26)
+      f.print(content);
+      f.close();
+      Serial.println("OK");
+    }
+
+    else if (cmd.startsWith("LS")) {
+      File root = LittleFS.open("/lua");
+      File file = root.openNextFile();
+      while (file) {
+        Serial.println(file.name());
+        file = root.openNextFile();
+      }
+      Serial.println("OK");
+    }
+
+    else if (cmd == "REBOOT") {
+      Serial.println("REBOOTING...");
+      ESP.restart();
+    }
+
+    else {
+      Serial.println("ERR: Unknown command");
+    }
+  }
+}
 
 // Setup LVGL
 void setupLvgl() {
@@ -797,6 +855,8 @@ void setupLuaVGL() {
   return;
 }
 
+volatile bool lora_packet_ready = false;
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Delaying for 50ms...");
@@ -893,6 +953,8 @@ void setup() {
 
   // Initialize LORA Radio
   Serial.println(F("Initialise the radio"));
+
+  // NZ (AU915) Meshtastic RX Setup
   int16_t state = radio.begin();
   if(state != RADIOLIB_ERR_NONE) {
     Serial.print(F("failed, code "));
@@ -901,19 +963,21 @@ void setup() {
 
   delay(100);
 
+  // MeshCore RX config
+  radio.setFrequency(915.0);         // MHz
+  radio.setBandwidth(250.0);         // kHz
+  radio.setSpreadingFactor(10);      // SF10
+  radio.setCodingRate(5);            // CR = 4/5
+  radio.setSyncWord(0x12);           // Private network
+  radio.setCRC(true);                // Enable CRC
+
   radio.setDio1Action([] {
-    String received;
-    int state = radio.readData(received);
-    if (state == RADIOLIB_ERR_NONE) {
-      Serial.printf("[LoRa RX] %s\n", received.c_str());
-    } else {
-      Serial.printf("[LoRa RX ERROR] %d\n", state);
-    }
+    lora_packet_ready = true;  // <-- that's it!
   });
 
   radio.startReceive();
 
-  delay(100);
+  // delay(100);
   
   Serial.println("Reinitialize display (TAKE THAT SPI BUS!)");
   tft.begin();
@@ -998,19 +1062,32 @@ void loop() {
   }
   
   // Check radio
-  static unsigned long lastTx = 0;
+   if (lora_packet_ready) {
+    lora_packet_ready = false;
 
-  if (millis() - lastTx > 10000) {
-    lastTx = millis();
-    String msg = "Hello from MeshPunk!";
-    int state = radio.transmit(msg);
+    digitalWrite(TFT_CS, HIGH);    // turn off display
+    digitalWrite(RADIO_CS_PIN, LOW);    // enable LoRa
+
+    uint8_t buffer[256];
+    size_t length = sizeof(buffer);
+    int state = radio.readData(buffer, length);
+
+    digitalWrite(RADIO_CS_PIN, HIGH);   // done with LoRa
+
     if (state == RADIOLIB_ERR_NONE) {
-      Serial.printf("[LoRa TX] %s\n", msg.c_str());
+      Serial.print("[LoRa RX] ");
+      for (size_t i = 0; i < length; i++) {
+        Serial.printf("%02X ", buffer[i]);
+      }
+      Serial.println();
     } else {
-      Serial.printf("[LoRa TX ERROR] %d\n", state);
+      Serial.printf("[LoRa RX ERROR] %d\n", state);
     }
-    radio.startReceive(); // Re-enable RX mode
   }
+
+  // Handle webserial
+
+  handleWebSerialCommands();
 
   delay(5);
 }
