@@ -7,12 +7,24 @@
 #include <Ticker.h> // Include ticker for LVGL timing
 #include <WiFi.h>
 #include <Wire.h>
-#include "tdeck-pins.h"
-// #include "radio.h"
-#include <RadioLib.h>
+#include <TFT_eSPI.h>
+#include <lvgl.h>
 #include "theme/lv_theme_meshpunk.h"
+#include "tdeck-pins.h"
 
-// WiFi credentials
+// Meshcore
+#include "punkmesh.h"
+#include "../../lib/MeshCore/src/helpers/ESP32Board.h"
+#include "../../lib/MeshCore/src/helpers/radiolib/CustomSX1262Wrapper.h"
+#include <Mesh.h>
+#include <helpers/ArduinoHelpers.h>
+#include <helpers/StaticPoolPacketManager.h>
+#include <helpers/SimpleMeshTables.h>
+#include <helpers/IdentityStore.h>
+#include <RTClib.h>
+#include <RadioLib.h>
+
+
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
@@ -41,14 +53,18 @@ int luaL_loadfilex(lua_State *L, const char *filename, const char *mode) {
     free(buffer);
     return status;
   }
-
 }
 
-#include <TFT_eSPI.h>
-#include <lvgl.h>
-
 // Radio
-SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN, RADIO_RST_PIN, RADIO_BUSY_PIN);
+RADIO_CLASS radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN, RADIO_RST_PIN, RADIO_BUSY_PIN);
+
+// Meshcore
+StdRNG fast_rng;
+SimpleMeshTables tables;
+
+ESP32Board board;
+CustomSX1262Wrapper radio_driver(radio, board);
+PunkMesh the_mesh(radio_driver, fast_rng, *new VolatileRTCClock(), tables); // TODO: test with 'rtc_clock' in target.cpp
 
 // Home button
 volatile bool homePressed = false;
@@ -964,21 +980,34 @@ void setup() {
   delay(100);
 
   // MeshCore RX config
-  radio.setFrequency(915.0);         // MHz
-  radio.setBandwidth(250.0);         // kHz
-  radio.setSpreadingFactor(10);      // SF10
+  radio.setFrequency(the_mesh.getFreqPref());         // MHz
+  radio.setBandwidth(LORA_BW);         // kHz
+  radio.setSpreadingFactor(LORA_SF);      // SF10
   radio.setCodingRate(5);            // CR = 4/5
-  radio.setSyncWord(0x12);           // Private network
+  // radio.setSyncWord(0xAB);           // Private network
   radio.setCRC(true);                // Enable CRC
+  // radio.set
+  radio.setOutputPower(17);          // dBm
 
-  radio.setDio1Action([] {
-    lora_packet_ready = true;  // <-- that's it!
-  });
+  // radio.setDio1Action([] {
+  //   lora_packet_ready = true;
+  // });
 
-  radio.startReceive();
 
   // delay(100);
   
+  // Start radio
+  radio.startReceive();
+
+  // Meshcore
+  fast_rng.begin(123456); // fixed seed for testing
+  the_mesh.begin();
+  the_mesh.showWelcome();
+
+  // send out initial Advertisement to the mesh
+  the_mesh.sendSelfAdvert(1200);   // add slight delay
+
+  // Reinitialize screen
   Serial.println("Reinitialize display (TAKE THAT SPI BUS!)");
   tft.begin();
   tft.setRotation(1);
@@ -1062,32 +1091,34 @@ void loop() {
   }
   
   // Check radio
-   if (lora_packet_ready) {
-    lora_packet_ready = false;
+  the_mesh.loop();
 
-    digitalWrite(TFT_CS, HIGH);    // turn off display
-    digitalWrite(RADIO_CS_PIN, LOW);    // enable LoRa
+  // if (lora_packet_ready) {
+  //   lora_packet_ready = false;
 
-    uint8_t buffer[256];
-    size_t length = sizeof(buffer);
-    int state = radio.readData(buffer, length);
+  //   digitalWrite(TFT_CS, HIGH);    // turn off display
+  //   digitalWrite(RADIO_CS_PIN, LOW);    // enable LoRa
 
-    digitalWrite(RADIO_CS_PIN, HIGH);   // done with LoRa
+  //   uint8_t buffer[256];
+  //   size_t length = sizeof(buffer);
+  //   int state = radio.readData(buffer, length);
 
-    if (state == RADIOLIB_ERR_NONE) {
-      Serial.print("[LoRa RX] ");
-      for (size_t i = 0; i < length; i++) {
-        Serial.printf("%02X ", buffer[i]);
-      }
-      Serial.println();
-    } else {
-      Serial.printf("[LoRa RX ERROR] %d\n", state);
-    }
-  }
+  //   digitalWrite(RADIO_CS_PIN, HIGH);   // done with LoRa
+
+  //   if (state == RADIOLIB_ERR_NONE) {
+  //     Serial.print("[LoRa RX] ");
+  //     for (size_t i = 0; i < length; i++) {
+  //       Serial.printf("%02X ", buffer[i]);
+  //     }
+  //     Serial.println();
+  //   } else {
+  //     Serial.printf("[LoRa RX ERROR] %d\n", state);
+  //   }
+  // }
 
   // Handle webserial
 
-  handleWebSerialCommands();
+  // handleWebSerialCommands();
 
   delay(5);
 }
