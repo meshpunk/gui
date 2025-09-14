@@ -8,6 +8,9 @@
 #include <WiFi.h>
 #include <Wire.h>
 #include "tdeck-pins.h"
+// #include "radio.h"
+#include <RadioLib.h>
+#include "theme/lv_theme_meshpunk.h"
 
 // WiFi credentials
 extern "C" {
@@ -43,6 +46,9 @@ int luaL_loadfilex(lua_State *L, const char *filename, const char *mode) {
 
 #include <TFT_eSPI.h>
 #include <lvgl.h>
+
+// Radio
+SX1262 radio = new Module(RADIO_CS_PIN, RADIO_DIO1_PIN, RADIO_RST_PIN, RADIO_BUSY_PIN);
 
 // Home button
 volatile bool homePressed = false;
@@ -320,6 +326,7 @@ static void touchpad_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
   }
 }
 
+
 // Setup LVGL
 void setupLvgl() {
 #define LVGL_BUFFER_SIZE (TFT_WIDTH * TFT_HEIGHT * sizeof(lv_color_t))
@@ -339,6 +346,19 @@ void setupLvgl() {
 
   // Create a display
   lv_display_t *disp = lv_display_create(TFT_HEIGHT, TFT_WIDTH);
+
+  // Set theme
+  lv_theme_t *custom_theme = lv_theme_meshpunk_init(
+    disp,
+    lv_color_make(0x10, 0x10, 0x10),   // Primary color
+    lv_color_make(0x30, 0x30, 0x30),   // Secondary color
+    true,                              // Dark mode
+    &lv_font_montserrat_14             // Font
+  );
+  
+  lv_disp_set_theme(disp, custom_theme);
+
+  // lv_obj_add_style(lv_scr_act(), &meshpunk_style, 0); // apply to root
 
   // Initialize the buffer
   lv_display_set_buffers(disp, buf, NULL, LVGL_BUFFER_SIZE,
@@ -642,7 +662,7 @@ void setupLuaVGL() {
     return 0;
   });
   lua_setfield(L, -2, "flush");
-  
+
   // file:close()
   lua_pushcfunction(L, [](lua_State *L) -> int {
     fs::File **ud = (fs::File **)luaL_checkudata(L, 1, "esp32_file");
@@ -788,21 +808,6 @@ void setup() {
   pinMode(TDECK_TRACKBALL_CLICK, INPUT_PULLUP);
   attachInterrupt(TDECK_TRACKBALL_CLICK, ISR_click, FALLING);
 
-  // Initialize filesystem
-  if (LittleFS.begin(true)) {
-    fs_mounted = true;
-    Serial.println("LittleFS mounted successfully");
-
-    Serial.println("LittleFS contents:");
-    listDir(LittleFS, "/lua");
-  } else {
-    Serial.println("Error mounting LittleFS!!");
-  }
-
-  // Initialize WiFi in station mode
-  WiFi.mode(WIFI_STA);
-  Serial.println("WiFi initialized in station mode");
-
   // The board peripheral power control pin needs to be set to HIGH when using
   // the peripheral
   pinMode(BOARD_POWERON, OUTPUT);
@@ -829,11 +834,28 @@ void setup() {
   Serial.println("Initializing display");
   tft.begin();
   tft.setRotation(1);
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_RED);
+
+  // Initialize filesystem
+  if (LittleFS.begin(true)) {
+    fs_mounted = true;
+    Serial.println("LittleFS mounted successfully");
+
+    Serial.println("LittleFS contents:");
+    listDir(LittleFS, "/lua");
+  } else {
+    Serial.println("Error mounting LittleFS!!");
+  }
+
+  // Initialize WiFi in station mode
+  WiFi.mode(WIFI_STA);
+  Serial.println("WiFi initialized in station mode");
 
   // Set touch int input
   pinMode(BOARD_TOUCH_INT, INPUT);
   delay(20);
+
+  Serial.println("Initializing GT911 touch sensor");
 
   Wire.begin(BOARD_I2C_SDA, BOARD_I2C_SCL);
 
@@ -844,8 +866,6 @@ void setup() {
       delay(1000);
     }
   }
-
-  Serial.println("Init GT911 Sensor success!");
 
   // Set touch max xy
   touch.setMaxCoordinates(320, 240);
@@ -868,6 +888,37 @@ void setup() {
   } else {
     Serial.println("T-Deck keyboard not found!");
   }
+
+  tft.fillScreen(TFT_GREEN);
+
+  // Initialize LORA Radio
+  Serial.println(F("Initialise the radio"));
+  int16_t state = radio.begin();
+  if(state != RADIOLIB_ERR_NONE) {
+    Serial.print(F("failed, code "));
+    Serial.println(state);
+  } // F("Initialise radio failed"), state, true);
+
+  delay(100);
+
+  radio.setDio1Action([] {
+    String received;
+    int state = radio.readData(received);
+    if (state == RADIOLIB_ERR_NONE) {
+      Serial.printf("[LoRa RX] %s\n", received.c_str());
+    } else {
+      Serial.printf("[LoRa RX ERROR] %d\n", state);
+    }
+  });
+
+  radio.startReceive();
+
+  delay(100);
+  
+  Serial.println("Reinitialize display (TAKE THAT SPI BUS!)");
+  tft.begin();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLUE);
 
   // LVGL tick function
   lvgl_ticker.attach_ms(5, []() {
@@ -944,6 +995,21 @@ void loop() {
     } else {
       Serial.println("Lua state is NULL!");
     }
+  }
+  
+  // Check radio
+  static unsigned long lastTx = 0;
+
+  if (millis() - lastTx > 10000) {
+    lastTx = millis();
+    String msg = "Hello from MeshPunk!";
+    int state = radio.transmit(msg);
+    if (state == RADIOLIB_ERR_NONE) {
+      Serial.printf("[LoRa TX] %s\n", msg.c_str());
+    } else {
+      Serial.printf("[LoRa TX ERROR] %d\n", state);
+    }
+    radio.startReceive(); // Re-enable RX mode
   }
 
   delay(5);
