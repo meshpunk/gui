@@ -14,7 +14,8 @@
 // class PunkMesh;
 
 // NodePrefs is shared between Lua + C++ config
-struct NodePrefs {
+struct NodePrefs
+{
   float airtime_factor;
   char node_name[32];
   double node_lat, node_lon;
@@ -24,29 +25,30 @@ struct NodePrefs {
 };
 
 // Class declaration
-class PunkMesh : public BaseChatMesh, ContactVisitor {
+class PunkMesh : public BaseChatMesh, ContactVisitor
+{
   // --- Methods implemented in punkmesh.cpp but missing from header ---
 public:
-  const char* getTypeName(uint8_t type) const;
+  const char *getTypeName(uint8_t type) const;
   void loadContacts();
   void saveContacts();
   void setClock(uint32_t timestamp);
-  void importCard(const char* command);
+  void importCard(const char *command);
   NodePrefs _prefs;
   uint32_t expected_ack_crc;
-  ChannelDetails* _public;
+  ChannelDetails *_public;
   unsigned long last_msg_sent;
-  ContactInfo* curr_recipient;
-  char command[512+10];
+  ContactInfo *curr_recipient;
+  char command[512 + 10];
   uint8_t tmp_buf[256];
   char hex_buf[512];
 
-  public:
-  PunkMesh(mesh::Radio& radio, StdRNG& rng, mesh::RTCClock& rtc, SimpleMeshTables& tables);
+public:
+  PunkMesh(mesh::Radio &radio, StdRNG &rng, mesh::RTCClock &rtc, SimpleMeshTables &tables);
 
   void begin();
   void loop();
-  void handleCommand(const char* command);
+  void handleCommand(const char *command);
   void sendSelfAdvert(int delay_millis);
   void showWelcome();
   void savePrefs();
@@ -55,23 +57,24 @@ public:
   uint8_t getTxPowerPref() const;
 
 protected:
+  void logRx(mesh::Packet *pkt, int len, float score) override;
   float getAirtimeBudgetFactor() const override;
   int calcRxDelay(float score, uint32_t air_time) const override;
-  bool allowPacketForward(const mesh::Packet* packet) override;
-  void onDiscoveredContact(ContactInfo& contact, bool is_new, uint8_t path_len, const uint8_t* path) override;
-  void onContactPathUpdated(const ContactInfo& contact) override;
+  bool allowPacketForward(const mesh::Packet *packet) override;
+  void onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t *path) override;
+  void onContactPathUpdated(const ContactInfo &contact) override;
   bool processAck(const uint8_t *data) override;
-  void onMessageRecv(const ContactInfo& from, mesh::Packet* pkt, uint32_t sender_timestamp, const char *text) override;
-  void onCommandDataRecv(const ContactInfo& from, mesh::Packet* pkt, uint32_t sender_timestamp, const char *text) override;
-  void onSignedMessageRecv(const ContactInfo& from, mesh::Packet* pkt, uint32_t sender_timestamp, const uint8_t *sender_prefix, const char *text) override;
-  void onChannelMessageRecv(const mesh::GroupChannel& channel, mesh::Packet* pkt, uint32_t timestamp, const char *text) override;
-  uint8_t onContactRequest(const ContactInfo& contact, uint32_t sender_timestamp, const uint8_t* data, uint8_t len, uint8_t* reply) override;
-  void onContactResponse(const ContactInfo& contact, const uint8_t* data, uint8_t len) override;
+  void onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp, const char *text) override;
+  void onCommandDataRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp, const char *text) override;
+  void onSignedMessageRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp, const uint8_t *sender_prefix, const char *text) override;
+  void onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packet *pkt, uint32_t timestamp, const char *text) override;
+  uint8_t onContactRequest(const ContactInfo &contact, uint32_t sender_timestamp, const uint8_t *data, uint8_t len, uint8_t *reply) override;
+  void onContactResponse(const ContactInfo &contact, const uint8_t *data, uint8_t len) override;
   void onSendTimeout() override;
   uint32_t calcFloodTimeoutMillisFor(uint32_t pkt_airtime_millis) const override;
   uint32_t calcDirectTimeoutMillisFor(uint32_t pkt_airtime_millis, uint8_t path_len) const override;
 
-  void onContactVisit(const ContactInfo& contact) override;
+  void onContactVisit(const ContactInfo &contact) override;
 };
 
 // Optional: declare global instance if using one
