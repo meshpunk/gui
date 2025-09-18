@@ -15,14 +15,10 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
 
 - `/src` - Main C++ code
   - `main.cpp` - Main application code
-  - `utilities.h` - T-Deck pin definitions and utilities
 - `/data` - Data files that get uploaded to the device filesystem
   - `/lua` - Lua scripts
-    - `messenger.lua` - Main messenger application
-    - `utils.lua` - Utility functions
-  - `/sounds` - Sound files
-  - `/images` - Image files
-
+    - `/apps` - Lua apps
+    
 ## Requirements
 
 - PlatformIO
