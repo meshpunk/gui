@@ -14,10 +14,9 @@ root:set {
 
 -- Calculator State
 local calc_state = {
-  current = "0",
+  current = 0,
   operator = nil,
-  operand = nil,
-  reset_next = false
+  operand = nil
 }
 
 -- Vertical layout
@@ -36,7 +35,7 @@ view:clear_flag(lvgl.FLAG.SCROLLABLE)
 
 -- Display
 local display = view:Label {
-    text = calc_state.current,
+    text = tostring(calc_state.current),
     text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
     text_color = '#FFA500',
     w = lvgl.PCT(100),
@@ -67,15 +66,15 @@ local function update_display()
 end
 
 local function perform_op()
-  local a = tonumber(calc_state.operand)
-  local b = tonumber(calc_state.current)
+  local a = calc_state.operand
+  local b = calc_state.current
   local op = calc_state.operator
 
   if not a or not b or not op then return end
 
   if op == "+" then a = a + b
   elseif op == "-" then a = a - b
-  elseif op == "*" then a = a * b
+  elseif op == "x" then a = a * b
   elseif op == "/" then
     if b == 0 then
       calc_state.current = "Err"
@@ -86,10 +85,9 @@ local function perform_op()
     end
   end
 
-  calc_state.current = tostring(a)
+  calc_state.current = a
   calc_state.operator = nil
-  calc_state.operand = nil
-  calc_state.reset_next = true
+  calc_state.operand = 0
   update_display()
 end
 
@@ -98,27 +96,20 @@ local function on_button_click(val)
   print(val)
 
   if val:match("%d") then
-    if calc_state.reset_next or calc_state.current == "0" then
-      calc_state.current = val
-      calc_state.reset_next = false
-    else
-      calc_state.current = calc_state.current .. val
-    end
+    calc_state.current = calc_state.current * 10 + tonumber(val)
   elseif val == "=" then
     perform_op()
-  elseif val == "+" or val == "-" or val == "*" or val == "/" then
+  elseif val == "+" or val == "-" or val == "x" or val == "/" then
     if calc_state.operator then
       perform_op()
     end
-    calc_state.current = "0"
     calc_state.operand = calc_state.current
     calc_state.operator = val
-    calc_state.reset_next = false
+    calc_state.current = 0
   elseif val == "C" then
-    calc_state.current = "0"
+    calc_state.current = 0
     calc_state.operator = nil
-    calc_state.operand = nil
-    calc_state.reset_next = false
+    calc_state.operand = 0
   end
   update_display()
 end
