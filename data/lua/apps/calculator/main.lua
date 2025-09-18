@@ -32,12 +32,15 @@ local view = root:Object {
     w = lvgl.PCT(100),
     pad_all = 10
 }
+view:clear_flag(lvgl.FLAG.SCROLLABLE)
 
 -- Display
 local display = view:Label {
     text = calc_state.current,
+    text_font = lvgl.BUILTIN_FONT.MONTSERRAT_28,
+    text_color = '#FFA500',
     w = lvgl.PCT(100),
-    h = 40,
+    h = 30,
     pad_left = 10,
     pad_right = 10,
     pad_top = 6,
@@ -53,8 +56,9 @@ local button_grid = view:Object {
     border_width = 0,
     w = lvgl.PCT(100),
     h = lvgl.VER_RES() - 50,
-    pad_all = 10
+    pad_all = 2
 }
+button_grid:clear_flag(lvgl.FLAG.SCROLLABLE)
 
 -- Button click logic
 local function update_display()
@@ -106,9 +110,15 @@ local function on_button_click(val)
     if calc_state.operator then
       perform_op()
     end
+    calc_state.current = "0"
     calc_state.operand = calc_state.current
     calc_state.operator = val
-    calc_state.reset_next = true
+    calc_state.reset_next = false
+  elseif val == "C" then
+    calc_state.current = "0"
+    calc_state.operator = nil
+    calc_state.operand = nil
+    calc_state.reset_next = false
   end
   update_display()
 end
@@ -116,16 +126,16 @@ end
 -- Add buttons
 local buttons = {
   "7", "8", "9", "/",
-  "4", "5", "6", "*",
+  "4", "5", "6", "x",
   "1", "2", "3", "-",
-  "0", "=", "+"
+  "0", "C", "=", "+"
 }
 
 local function createBtn(parent, value)
     -- make button 20% wide
     local btn = parent:Button {
         w = lvgl.PCT(20),
-        h = 40
+        h = 35
     }
 
     -- btn:onClicked(function()
@@ -137,6 +147,14 @@ local function createBtn(parent, value)
         text = value,
         align = lvgl.ALIGN.CENTER,
     }
+
+    -- Make equals button orange
+    if value == "=" then
+      btn:set { 
+        bg_color = "#FFA500",
+        text_color = "#000000"
+     }
+    end
 
     btn:onClicked(function()
       on_button_click(value)
