@@ -12,3 +12,8 @@ entry = "/apps/messenger/main.lua"
 name = "notes"
 icon = "/apps/notes/icon.png"
 entry = "/apps/notes/main.lua"
+
+[[apps]]
+name = "calculator"
+icon = "/apps/calculator/icon.png"
+entry = "/apps/calculator/main.lua"
