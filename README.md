@@ -5,10 +5,11 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
 ## Features
 
 - Combines the power of LVGL with the simplicity of Lua scripting
-- Runs on the LilyGo T-Deck hardware
+- Runs on the LilyGo T-Deck
 - Demonstrates touch and display capabilities
-- Uses PlatformIO for easy building and deployment
-- Loads Lua scripts from the filesystem for easy development
+- Uses PlatformIO for easy building
+- Loads Lua scripts from the filesystem
+- Integrates MeshCore networking
 
 ## Project Structure
 
@@ -52,14 +53,9 @@ This project demonstrates using [LuaVGL](https://github.com/XuNeo/luavgl) on the
 
 You must close the serial monitor before uploadfs or it wont work.
 
-## Submodules
-
-This project uses the following Git submodules:
-- [LuaVGL](https://github.com/XuNeo/luavgl) - Located in `lib/luavgl`
-
 ## Usage
 
-The example loads the `messenger.lua` script from the filesystem and displays a simple messenger UI. You can edit the Lua scripts in your IDE with proper syntax highlighting and then upload just the filesystem to quickly iterate on your UI design.
+The example loads the `launcher.lua` script from the filesystem and displays a simple launcher UI. You can edit the Lua scripts in your IDE with proper syntax highlighting and then upload just the filesystem to quickly iterate on your UI design.
 
 ### Developing Lua Scripts
 
@@ -74,6 +70,19 @@ You can create additional Lua scripts in the `/data/lua` directory. Scripts can 
 ```lua
 local utils = require('utils')
 ```
+
+You should add your apps to `apps.toml` to have them appear in the launcher.
+
+## PRs
+
+Pull requests are welcome! Please keep in mind the following rules:
+
+- should be minimal (only touch required files, minimal changes)
+- respect the current code style and indentation
+- be the most obvious code that will run performantly
+- keep your code idiomatic unless theres a good reason not to
+
+The goal is to make this project easy for new developers to pick up and contribute to.
 
 ## License
 
