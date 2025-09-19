@@ -7,17 +7,19 @@ function M:onMessage(cb)
     M.__onMessage = cb
 end
 
-function M:broadcast(text)
-    print("Broadcasting message:", text)
+function M:broadcast(message)
+    print(message)
+
+    local from = "none"
     
     -- Here you would add the actual broadcasting logic
     -- For now, we simulate receiving the message ourselves
-    M.__dispatch(text, os.time(), true, 0)
+    M.__dispatch(message, os.time(), true, 0, from)
 end
 
-function M.__dispatch(text, timestamp, direct, hops)
+function M.__dispatch(text, timestamp, direct, hops, from)
   local msg = {
-    from = "fixme", -- maybe extract from text
+    from = from or "fixme",
     text = text,
     timestamp = timestamp,
     direct = direct,

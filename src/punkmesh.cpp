@@ -11,23 +11,23 @@
 #define FIRMWARE_VER_TEXT "v2 (build: 4 Feb 2025)"
 
 #ifndef LORA_FREQ
-#define LORA_FREQ 915.0
+#define LORA_FREQ 910.525
 #endif
 #ifndef LORA_BW
-#define LORA_BW 250
+#define LORA_BW 62.5
 #endif
 #ifndef LORA_SF
-#define LORA_SF 10
+#define LORA_SF 7
 #endif
 #ifndef LORA_CR
 #define LORA_CR 5
 #endif
 #ifndef LORA_TX_POWER
-#define LORA_TX_POWER 20
+#define LORA_TX_POWER 18
 #endif
 
 #ifndef MAX_CONTACTS
-#define MAX_CONTACTS 100
+#define MAX_CONTACTS 200
 #endif
 
 #include <helpers/BaseChatMesh.h>

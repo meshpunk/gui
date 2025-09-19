@@ -107,8 +107,8 @@ messages:onMessage(function(msg)
 --   print(msg.timestamp .. " 🕒")
 --   print(msg.hops .. "🐰")
 
-  print("🔥 From:" .. msg.from)
-  print("💬 Text:" .. msg.text)
+  print("🔥 From:" .. tostring(msg.from))
+  print("💬 Text:" .. tostring(msg.text))
 
   update_message_list()
 end)
@@ -146,7 +146,11 @@ ta:onevent(lvgl.EVENT.KEY, function(obj, code)
     print(key)
 
     if key == lvgl.KEY.ENTER then
-        messages.broadcast(ta.text)
+        print("Enter pressed, sending message")
+        local message_to_send = ta.text
+        print("About to broadcast:", message_to_send)  -- Add this line
+        print("Type of message_to_send:", type(message_to_send))  -- And this one
+        messages:broadcast(message_to_send)
         -- messages[#messages + 1] = {
         --     text = ta.text,
         --     sender = "0x1234567890",
