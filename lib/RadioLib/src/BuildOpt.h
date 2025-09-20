@@ -69,7 +69,7 @@
  *          Failure to heed the above warning may result in bricked module.
  */
 #if !defined(RADIOLIB_GODMODE)
-  #define RADIOLIB_GODMODE (0)
+  #define RADIOLIB_GODMODE (1)
 #endif
 
 /*
