@@ -75,6 +75,8 @@ public:
   float getFreqPref() const;
   uint8_t getTxPowerPref() const;
 
+  void broadcastMessage(const char* text);
+
 protected:
   void logRx(mesh::Packet *pkt, int len, float score) override;
   float getAirtimeBudgetFactor() const override;

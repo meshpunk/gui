@@ -638,6 +638,57 @@ static int lua_wifi_fetch(lua_State *L) {
   return 1; // Return the result table
 }
 
+// Lua function to broadcast messages to the mesh
+static int lua_mesh_broadcast(lua_State *L) {
+  const char *text = luaL_checkstring(L, 1);
+  
+  Serial.print("Lua broadcasting message: ");
+  Serial.println(text);
+  
+  // Send the message through MeshCore
+  the_mesh.broadcastMessage(text);
+  
+  // Return success
+  lua_pushboolean(L, true);
+  return 1;
+}
+
+// Add this function to handle received messages from MeshCore
+void onMeshMessageReceived(const char* from, const char* text, uint32_t timestamp, uint8_t hops, bool direct) {
+  Serial.print("Received mesh message from ");
+  Serial.print(from);
+  Serial.print(": ");
+  Serial.println(text);
+  
+  // Call Lua callback if available
+  if (L) {
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "loaded");
+    lua_getfield(L, -1, "lib/mesh/messages");
+    
+    if (lua_istable(L, -1)) {
+      lua_getfield(L, -1, "__dispatch");
+      if (lua_isfunction(L, -1)) {
+        lua_pushstring(L, text);      // text
+        lua_pushinteger(L, timestamp); // timestamp
+        lua_pushboolean(L, direct);   // direct
+        lua_pushinteger(L, hops);     // hops
+        
+        int result = lua_pcall(L, 4, 0, 0);
+        if (result != LUA_OK) {
+          const char* error = lua_tostring(L, -1);
+          Serial.print("Lua message dispatch error: ");
+          Serial.println(error);
+          lua_pop(L, 1);
+        }
+      } else {
+        lua_pop(L, 1); // pop non-function
+      }
+    }
+    lua_pop(L, 3); // pop lib/mesh/messages, loaded, package
+  }
+}
+
 // Initialize LuaVGL
 void setupLuaVGL() {
   // Create Lua state
@@ -662,6 +713,8 @@ void setupLuaVGL() {
   lua_register(L, "_wifi_status", lua_wifi_status);
   lua_register(L, "_wifi_disconnect", lua_wifi_disconnect);
   lua_register(L, "_wifi_fetch", lua_wifi_fetch);
+
+  lua_register(L, "_mesh_broadcast", lua_mesh_broadcast);
 
   // Add Lua loader for require function
   lua_getglobal(L, "package");
