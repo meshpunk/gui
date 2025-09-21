@@ -11,23 +11,23 @@
 #define FIRMWARE_VER_TEXT "v2 (build: 4 Feb 2025)"
 
 #ifndef LORA_FREQ
-#define LORA_FREQ 915.0
+#define LORA_FREQ 910.525
 #endif
 #ifndef LORA_BW
-#define LORA_BW 250
+#define LORA_BW 62.5
 #endif
 #ifndef LORA_SF
-#define LORA_SF 10
+#define LORA_SF 7
 #endif
 #ifndef LORA_CR
 #define LORA_CR 5
 #endif
 #ifndef LORA_TX_POWER
-#define LORA_TX_POWER 20
+#define LORA_TX_POWER 18
 #endif
 
 #ifndef MAX_CONTACTS
-#define MAX_CONTACTS 100
+#define MAX_CONTACTS 200
 #endif
 
 #include <helpers/BaseChatMesh.h>
@@ -41,6 +41,7 @@
 
 // Punk<->Lua bridge
 
+extern void onMeshMessageReceived(const char* from, const char* text, uint32_t timestamp, uint8_t hops, bool direct);
 void lua_mesh_push_message(lua_State* L, const mesh::GroupChannel &channel, mesh::Packet *pkt, uint32_t timestamp, const char *text) {
     lua_getglobal(L, "require");
     lua_pushstring(L, "lib/mesh/messages");
@@ -290,8 +291,25 @@ bool PunkMesh::processAck(const uint8_t *data)
     return false;
 }
 
-void PunkMesh::onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp, const char *text)
-{
+void PunkMesh::broadcastMessage(const char* text) {
+    Serial.print("PunkMesh broadcasting: ");
+    Serial.println(text);
+    // const char* channel_id = "public";
+    // Use the existing command system to send messages
+    // snprintf(command, sizeof(command), "msg %s", text);
+    snprintf(command, sizeof(command), "public %s", text);
+    handleCommand(command);
+}
+
+void PunkMesh::onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp, const char *text) {
+    // Call the parent implementation first
+    //BaseChatMesh::onMessageRecv(from, pkt, sender_timestamp, text);
+    
+    // Extract hop count and direct path info from packet if available
+    // Since mesh::Packet methods aren't clear, we'll use default values for now
+    uint8_t hops = 0; // Default to 0 hops
+    bool direct = true; // Default to direct
+    
     Serial.printf("(%s) MSG -> from %s\n", pkt->isRouteDirect() ? "DIRECT" : "FLOOD", from.name);
     Serial.printf("   %s\n", text);
 
@@ -299,6 +317,12 @@ void PunkMesh::onMessageRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_
     { // special text command
         setClock(sender_timestamp + 1);
     }
+
+    // Store in our local history
+    store_message(from.name, text, sender_timestamp, hops, direct);
+    
+    // Notify Lua
+    onMeshMessageReceived(from.name, text, sender_timestamp, hops, direct);
 }
 
 void PunkMesh::onCommandDataRecv(const ContactInfo &from, mesh::Packet *pkt, uint32_t sender_timestamp, const char *text)
@@ -308,22 +332,20 @@ void PunkMesh::onSignedMessageRecv(const ContactInfo &from, mesh::Packet *pkt, u
 {
 }
 
-void PunkMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packet *pkt, uint32_t timestamp, const char *text)
-{
-    // Send to Lua
-    if (lua_runtime) {
-        lua_mesh_push_message(lua_runtime, channel, pkt, timestamp, text);
-    }
-
-    if (pkt->isRouteDirect())
-    {
-        Serial.printf("PUBLIC CHANNEL MSG -> (Direct!)\n");
-    }
-    else
-    {
-        Serial.printf("PUBLIC CHANNEL MSG -> (Flood) hops %d\n", pkt->path_len);
-    }
-    // Serial.printf("   %s\n", text);
+void PunkMesh::onChannelMessageRecv(const mesh::GroupChannel &channel, mesh::Packet *pkt, uint32_t timestamp, const char *text) {
+    // Don't call parent - just handle our own logic
+    Serial.print("Received channel message: ");
+    Serial.println(text);
+    
+    // Extract hop count and direct path info from packet if available
+    uint8_t hops = 0; // Default to 0 hops
+    bool direct = true; // Default to direct
+    
+    // Store in our local history
+    store_message("channel", text, timestamp, hops, direct);
+    
+    // Notify Lua
+    onMeshMessageReceived("channel", text, timestamp, hops, direct);
 }
 
 uint8_t PunkMesh::onContactRequest(const ContactInfo &contact, uint32_t sender_timestamp, const uint8_t *data, uint8_t len, uint8_t *reply)
